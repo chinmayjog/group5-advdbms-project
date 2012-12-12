@@ -5,19 +5,19 @@ LDFLAGS = -lm
 .PHONY: all clean
 
 all : Main.o BufferManagerInterface.o BufferManager.o BufferManagerUtils.o
-	${CC} ${CFLAGS} Main.o BufferManager.o BufferManagerInterface.o BufferManagerUtils.o ${LDFLAGS} -o BufferManager
+	${CC} ${CFLAGS} obj/Main.o obj/BufferManager.o obj/BufferManagerInterface.o obj/BufferManagerUtils.o ${LDFLAGS} -o BufferManager
 
-BufferManagerUtils.o : BufferManagerUtils.cpp BufferManager.h
-	${CC} ${CFLAGS} -c BufferManagerUtils.cpp
+BufferManagerUtils.o : src/BufferManagerUtils.cpp src/BufferManager.h
+	${CC} ${CFLAGS} -c src/BufferManagerUtils.cpp -o obj/BufferManagerUtils.o
 
-BufferManager.o : BufferManager.cpp BufferManager.h
-	${CC} ${CFLAGS} -c BufferManager.cpp
+BufferManager.o : src/BufferManager.cpp src/BufferManager.h
+	${CC} ${CFLAGS} -c src/BufferManager.cpp -o obj/BufferManager.o
 
-BufferManagerInterface.o : BufferManagerInterface.cpp BufferManager.h
-	${CC} ${CFLAGS} -c BufferManagerInterface.cpp
+BufferManagerInterface.o : src/BufferManagerInterface.cpp src/BufferManager.h
+	${CC} ${CFLAGS} -c src/BufferManagerInterface.cpp -o obj/BufferManagerInterface.o
 
-Main.o : Main.cpp BufferManager.h 
-	${CC} ${CFLAGS} -c Main.cpp
+Main.o : src/Main.cpp src/BufferManager.h 
+	${CC} ${CFLAGS} -c src/Main.cpp -o obj/Main.o
 
 clean:
-	rm -f BufferManager BufferManager.o BufferManagerInterface.o Main.o BufferManagerUtils.o
+	rm -f BufferManager obj/BufferManager.o obj/BufferManagerInterface.o obj/Main.o obj/BufferManagerUtils.o
