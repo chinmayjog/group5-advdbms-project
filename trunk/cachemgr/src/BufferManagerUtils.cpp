@@ -173,7 +173,7 @@ void BufferManager::printCacheHeaders(){
 
 void BufferManager::printHex(int buffId, int size){
 	int i, j;
-	int offset = buffId*sizeofbuffer;
+	int offset = buffId*sizeofbuffer+sizeofheader;
 	const unsigned char *p = reinterpret_cast<const unsigned char *>(bufferPool+offset);
 	cout<<"      ";
 	for(j=0;j<16;j++){
@@ -186,6 +186,24 @@ void BufferManager::printHex(int buffId, int size){
 		for(j=0;j<max;j++){
 			cout<<setfill('0')<<setw(2)<<hex<<int(p[i+j]);
 			cout<<" ";
+		}
+		cout<<"\t";
+		for(j=0;j<max;j++){
+			cout<<(isprint(int(p[i+j]))?char(p[i+j]):'.');
+			cout<<" ";
+		}
+		if(i%160 == 0){
+			cout<<endl<<"Press n to interrupt, any other key to continue"<<endl;
+			string c;
+			if(i==0)
+				getchar();
+			c=getchar();
+			if(c=="n")
+				break;
+			cout<<"      ";
+			for(j=0;j<16;j++){
+				cout<<setfill('0')<<setw(2)<<setbase(16)<<(j)<<" ";
+			}
 		}
 		cout<<setbase(10);
 		cout<<endl;
