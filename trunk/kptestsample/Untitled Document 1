@@ -1,0 +1,64 @@
+//Database header....
+
+class DBHeader
+{
+	private: int _noFreePages;
+		 SysTables *_sysTables;
+		 SysColumns *_sysColumns;
+		 SysIndex *_sysIndex;
+		 DirectoryPage *_directoryPage;
+		 int _totalDBSize;
+		 char *_filePath;
+		 int _pageSize;
+		 FreePagePointer *_freePtr;
+	
+	public: int getNoFreePages()
+		{
+			return _noFreePages;
+		}
+
+		void setNoFreePages(int _noFreePages)
+		{
+			this->_noFreePages = _noFreePages;
+		}
+
+		SysTables * getSysTablesPointer()
+		{
+			return _sysTables;
+		}
+
+		void setSysColumnsPointer(SysTables *_sysTables)
+		{
+			this->_sysTables = _sysTables;
+		}
+
+		SysColumns * getSysColumnsPointer()
+		{
+			return _sysColumns;
+		}
+
+		void setSysColumnsPointer(SysColumns *_sysColumns)
+		{
+			this->_sysColumns = _sysColumns;
+		}
+
+		SysIndex * getSysIndexPointer()
+		{
+			return _sysIndex;
+		}
+
+		void setSysIndexPointer(SysIndex *_sysIndex)
+		{
+			this->_sysIndex = _sysIndex;
+		}
+
+		DirectoryPage * getDirectoryPagePointer()
+		{
+			return _sysIndex;
+		}
+
+		void setDirectoryPagePointer(DirectoryPage *_sysIndex)
+		{
+			this->_sysIndex = _sysIndex;
+		}
+};
