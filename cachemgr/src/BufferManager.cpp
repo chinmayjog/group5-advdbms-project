@@ -74,6 +74,8 @@ int BufferManager::writePageToBuffer(int fdID, int pgNo, PagePriority p, unsigne
 		hitCnt++;
 		totalCnt++;
 		memcpy((char *)bufferPool+offset+sizeofheader, src, pageSize);
+		cout<<"BufferPointerLocation1:"<<(char *)bufferPool+offset+sizeofheader<<endl;
+		cout<<"BufferPointerLocation2:"<<&bufferPool[offset+sizeofheader]<<endl;
 		memcpy(&b, bufferPool+offset, sizeofheader); 
 		b.t_priority = time(NULL);
 		b.dirty = true;
@@ -215,12 +217,12 @@ int BufferManager::initializeCache(int numberOfPages){
 
 int BufferManager::createDB(string filename, int sizeinBytes){
 	fstream dbFile;
-	dbFile.open(("../data/"+filename+".txt").c_str(), ios::in | ios::binary);
+	dbFile.open(("data/"+filename+".txt").c_str(), ios::in | ios::binary);
 	if(dbFile){
 		dbFile.close();
 		return -1;
 	}
-	dbFile.open(("../data/"+filename+".txt").c_str(), ios::out | ios::binary);
+	dbFile.open(("data/"+filename+".txt").c_str(), ios::out | ios::binary);
 	if(!dbFile)
 		return -2;
 	dbFile.seekp(sizeinBytes-1);
@@ -236,7 +238,7 @@ int BufferManager::openDB(string filename){
 		if((mdtptr = getEmptyMDT())!= -1){
 			mdt[mdtptr].id = mdtptr;
 			mdt[mdtptr].dbName = filename;
-			mdt[mdtptr].fd.open(("../data/"+filename+".txt").c_str(), ios::in | ios::out | ios::binary);
+			mdt[mdtptr].fd.open(("data/"+filename+".txt").c_str(), ios::in | ios::out | ios::binary);
 			if(!mdt[mdtptr].fd){
 				return -2;
 			}
@@ -253,7 +255,7 @@ int BufferManager::openDB(string filename){
 		}
 		else
 		{
-			mdt[mdtptr].fd.open(("../data/"+filename+".txt").c_str(), ios::in | ios::out | ios::binary);
+			mdt[mdtptr].fd.open(("data/"+filename+".txt").c_str(), ios::in | ios::out | ios::binary);
 			if(!mdt[mdtptr].fd){
 				return -2;
 			}
