@@ -174,7 +174,7 @@ void process_choice(int choice){
 			}
 			break;			
 		case 14:
-			releaseCache(bu);
+		//	releaseCache(bu);
 			break;
 	}
 }

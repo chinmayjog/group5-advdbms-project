@@ -74,8 +74,6 @@ int BufferManager::writePageToBuffer(int fdID, int pgNo, PagePriority p, unsigne
 		hitCnt++;
 		totalCnt++;
 		memcpy((char *)bufferPool+offset+sizeofheader, src, pageSize);
-		cout<<"BufferPointerLocation1:"<<(char *)bufferPool+offset+sizeofheader<<endl;
-		cout<<"BufferPointerLocation2:"<<&bufferPool[offset+sizeofheader]<<endl;
 		memcpy(&b, bufferPool+offset, sizeofheader); 
 		b.t_priority = time(NULL);
 		b.dirty = true;
