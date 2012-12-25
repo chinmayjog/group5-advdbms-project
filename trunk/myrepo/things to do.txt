@@ -1,0 +1,48 @@
+Error strings and their values
+Error values in queries
+
+Debug strings and files
+
+Data Types
+BIGINT long
+UBIG unsigned long
+INT int
+UINT unsigned int
+SMALLINT short
+USMALL unsigned short
+FLOAT float
+DOUBLE double
+CHAR fixed-length char
+VARCHAR variable-length char (length+char)
+DATE
+TIME
+DATETIME
+
+DECFLOAT
+DATETIME+/-TIMEZONE
+
+Search all columns for a table
+Return type is int* array or pass the array as parameter
+1's contain the entries which match the table name
+0's contain the entries which do not match
+
+Functions to be written
+If database name already exists - Creation of a database....
+If table name already exists - SysTables for a database
+If column name already exists - SysColumns for a table
+If index name already exists - SysIndex for a database
+
+Change REMARKSPTR to respective REMARKSPTR... SYSTABREMARKSPTR SYSCOLREMARKSPTR SYSINDREMARKSPTR
+
+Initialize all strings to NULL, in getBuffer for SysTab,SysCol
+
+Add SYSCOL and SYSTAB to respective #define's
+
+Function to check whether index exists for a table....
+
+Always buffer created should be initialized....... Use either #'s or 0's to initialize mostly 0's.......
+
+3 cases:
+Primary Key while specifying columns - Only one column primary key
+Primary Key specified after all the columns are specified - Multi column primary key
+Primary Key as add constraint - Single/Multi-column primary key

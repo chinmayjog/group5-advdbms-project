@@ -1,0 +1,1 @@
+g++ SysTables.o SysColumns.o SysIndex.o FreeList.o DBHeader.o DB.o DBTest.o -o DBTest.out

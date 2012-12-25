@@ -1,0 +1,19 @@
+Test Cases for Table Creation
+
+Check table name already exists.... If so flag an error else create table
+Check for duplicate column name and type combination......
+	Same name and different data types are correct
+	Same name and same data types are not correct.....
+Check whether key is present or not for the table.
+Check whether key is single column or multi-column.
+Check whether key was specified inline or separately.
+Check whether any field is auto-generated.
+	Decide on start value and step size.
+	Decide what to do if data type is char or varchar. - My thinking do not allow auto generation for char or varchar
+	Decide for float/double. - Same logic as above.
+	So mostly on int.......
+Check whether any field has default values.
+Check whether default values fall inside the limits of the data types.
+
+Check with Chinmay if we are allowing tables to be created without columns specified. Columns can be specified with alter
+query later. If this then, in the query field, there should be no. of coulmns 0.
