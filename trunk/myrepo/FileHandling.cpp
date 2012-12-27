@@ -94,7 +94,7 @@ int pageWrite(string fileName,int _pno,char *buffer,int _pageSize)
 	size_t size;
 	//char buffer = new char [_pageSize];
 	//char *fName = fileName.c_str();
-	fd = open(fileName.c_str(), O_RDWR, 0666);
+	fd = open(fileName.c_str(), O_CREAT|O_RDWR, 0666);
 	if(fd<0)
 	{
 		cerr<<"\n Error in creating the file";
