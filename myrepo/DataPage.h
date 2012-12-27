@@ -5,6 +5,7 @@
 #include<fstream>
 #include<iomanip>
 #include<cstring>
+#include<stdlib.h>
 
 //#define FALSE 0
 //#define TRUE 1

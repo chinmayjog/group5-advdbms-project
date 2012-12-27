@@ -260,8 +260,8 @@ int DataPage::deleteData(char *dataPageBuffer,char *deleteData,int dataPos)
 				memcpy(posData,&dataBuf[dataPointer],offset);
 				if(strcmp(posData,deleteData)==0)
 				{
-					cout<<"Data found at slot ID: "<<i;
-					cout<<"Deleting it.....";
+					cout<<"Data found at slot ID: "<<i<<" ";
+					cout<<"Deleting it....."<<endl;
 					slotSize = (-1)*slotSize;
 					resCount++;
 					memcpy(&dataPageBuffer[FIRSTSLOTPTR-(i+1)*sizeof(long)-(i+1)*sizeof(int)],&slotSize,sizeof(int));
@@ -317,7 +317,7 @@ int DataPage::searchData(char *dataPageBuffer,char *searchData,int dataPos)
 				memcpy(posData,&dataBuf[dataPointer],offset);
 				if(strcmp(posData,searchData)==0)
 				{
-					cout<<"Data found at slot ID: "<<i;
+					cout<<"Data found at slot ID: "<<i<<endl;
 					resCount++;
 				}
 				delete posData;
@@ -376,6 +376,7 @@ int DataPage::updateData(char *dataPageBuffer,char *oldData,char *newData,int da
 					resCount++;
 					cout<<"Updating the data....";
 					memcpy(&dataBuf[dataPointer],newData,offset);
+					cout<<endl;
 				}
 				delete posData;
 			}

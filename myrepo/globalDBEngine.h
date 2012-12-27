@@ -2,7 +2,7 @@
 #define PAGESIZE _pageSize
 #endif
 #ifndef globalB
-#define DBROOT "./"
+#define DBROOT "../testDB/"
 #endif
 #ifndef globalC
 #define PAGEIDPTR (PAGESIZE-sizeof(int))
