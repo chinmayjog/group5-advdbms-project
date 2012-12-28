@@ -5,6 +5,8 @@
 #include<fstream>
 #include<iomanip>
 #include<cstring>
+#include<vector>
+#include<dirent.h>
 #define _NUMPG 1024
 #define _PGSZ 2048
 
@@ -59,6 +61,7 @@ class BufferManager {
 	public:
 		 static BufferManager* getBufferManager();
 		 static void releaseBuffer();
+		 bool listDBs(vector<string> &files);
 		 void setPageSize(int pageSizeInBytes);
 		 int  initializeCache(int numPages);
 		 int  getPageSize();
