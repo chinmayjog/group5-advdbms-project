@@ -359,6 +359,25 @@ int BufferManager::closeDB(int mdtID){
 	return -1;
 }
 
+bool BufferManager::listDBs(vector<string> &files){
+	DIR *dp;
+    struct dirent *dirp;
+    if((dp  = opendir("data")) == NULL) {
+        cout << "Could not open directory" << endl;
+        return false;
+    }
+
+    while ((dirp = readdir(dp)) != NULL) {
+		string dname = string(dirp->d_name);
+		if(dname.length() > 2){
+			dname.erase(dname.end()-4, dname.end());
+			files.push_back(dname);
+		}
+    }
+    closedir(dp);
+    return true;
+}
+
 void BufferManager::closeAll(){
 	for(int i=0;i<max_connection;i++){
 		if(mdt[i].id!=-1 && mdt[i].isopen){
