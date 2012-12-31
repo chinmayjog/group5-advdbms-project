@@ -303,7 +303,7 @@ void printSlotsInformation(string fileName,int pageSize,int pageID)
 				cout<<dirPageEntry->getPageID()<<"\t\t"<<dirPageEntry->getTFS()<<"\t\t"<<"True";
 			delete dirPageEntry;
 		}*/
-		directoryPage->printSlotsInformation();
+		directoryPage->printSlotsInformation(buffer);
 		delete directoryPage;
 	}
 	delete buffer;
