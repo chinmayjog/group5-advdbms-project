@@ -356,7 +356,7 @@ int DB::createIndex()
 {
 	// For create index command
 	// Check if index name already exists... If so return error....
-	// Check if for the table, index already exists.... If so return error.....
+	// Check if for the table, index already exists on that key.... If so return error.....
 	// Add sysIndex entry
 	// If index is created before any insertions..... Then nothing to do from here on return....
 	// Else
@@ -375,6 +375,9 @@ int DB::insertEntry()
 {
 	// For insert command
 	// Index check required
+	// Send index type and key value to check if the index entry can be created.....
+	// If yes, then, insert the entry, and send the key,dataPage,slotPointer to the index for inserting into the B+ tree
+	// If no, flag an error telling entry already exists
 	// Check whether entry has to be inserted and then the index updated or index will provide me the location to insert
 	// If SysTables Entry exists, and SysColumns Entries are 0 for the table, then return error COLUMNSNOTSPECIFIEDERROR
 }
@@ -383,6 +386,7 @@ int DB::deleteEntry()
 {
 	// For delete command
 	// Index check required
+	// On delete entry, update the total free space for the data page entry in the Directory page. This is a must!!!!
 }
 
 int DB::updateEntry()
