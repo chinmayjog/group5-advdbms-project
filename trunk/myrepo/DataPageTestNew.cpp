@@ -2,6 +2,7 @@
 
 #include"DataPage.h"
 #include"FileHandling.cpp"
+#include"DataTypes.h"
 
 int dataPageCreate()
 {
@@ -21,6 +22,51 @@ int dataPageCreate()
 	memcpy(&buffer[NEXTPTR],&nextPTR,sizeof(int));
 	pageWrite(fileName,pageID,buffer,_pageSize);
 	delete buffer;
+	return pageID;
+}
+
+int dataPageCreate(string fileName,int pageID,int _pageSize)
+{
+	int nextPTR = -1;
+	short pagePriority = 1;
+	DataPage dataPage(_pageSize,pageID);
+	char * buffer = new char [_pageSize];
+	dataPage.fillBuffer(buffer);
+	memcpy(&buffer[PAGEIDPTR],&pageID,sizeof(int));
+	memcpy(&buffer[PAGEPRIPTR],&pagePriority,sizeof(short));
+	memcpy(&buffer[NEXTPTR],&nextPTR,sizeof(int));
+	pageWrite(fileName,pageID,buffer,_pageSize);
+	delete buffer;
+	return pageID;
+}
+
+int createNewPage()
+{
+	string fileName;
+	int _pageSize;
+	cout<<"Enter the file name for the data page file: ";
+	cin>>fileName;
+	cout<<"Enter the page size for the file: ";
+	cin>>_pageSize;
+
+	int noOfPages;
+
+	// Opening the file to get the file size and calculate the no of pages......
+	int fd = open(fileName.c_str(),O_RDWR,0666);
+	if(fd < 0)
+	{
+		cout<<"File not found or does not exist....";
+		return -1;
+	}
+	off_t fileSize = lseek(fd,0,SEEK_END);
+	noOfPages = fileSize/_pageSize;
+	close(fd);
+
+	int result = dataPageCreate(fileName,noOfPages+1,_pageSize);
+
+	cout<<"Page ID: "<<result<<" has been created."<<endl;
+
+	return result;
 }
 
 int insertEntry()
@@ -119,12 +165,27 @@ int insertEntry()
 			cout<<"Create a new page and insert there..."<<endl;
 			cout<<"After integration you will have to insert a directory entry and then create a data page and insert the data there...";
 			cout<<endl;
+			int res1 = dataPageCreate(fileName,noOfPages+1,pageSize);
+			int res2 = pageRead(fileName,noOfPages+1,buffer,pageSize);
+			DataPage * newDataPage1 = new DataPage(buffer,pageSize);
+			int inserted1 = newDataPage1->insertData(buffer,dataBuf,dataSize);
+			cout<<endl<<"Data was inserted in "<<noOfPages+1<<"th page."<<endl;
+			res2 = pageWrite(fileName,noOfPages+1,buffer,pageSize);
+			delete newDataPage1;
+			delete newDataPage;
+			delete buffer;
+			if(inserted1 > 0)
+				inserted = 1;
+			break;
 		}
 		if(inserted > 0)
 		{
 			// Data was inserted.....
 			cout<<endl<<"Data was inserted in "<<i<<"th page."<<endl;
 			res = pageWrite(fileName,i,buffer,pageSize);
+			delete newDataPage;
+			delete buffer;
+			break;
 		}
 		delete newDataPage;
 		delete buffer;
@@ -234,16 +295,32 @@ int insertMultipleEntries()
 			{
 				// Create new Data page and insert the data there code......
 				// Otherwise this function will contain code for defragmenting the data page....
-				cout<<"Unimplemented...."<<endl;
+				/*cout<<"Unimplemented...."<<endl;
 				cout<<"Create a new page and insert there..."<<endl;
 				cout<<"After integration you will have to insert a directory entry and then create a data page and insert the data there...";
-				cout<<endl;
+				cout<<endl;*/
+				int res1 = dataPageCreate(fileName,noOfPages+1,pageSize);
+				int res2 = pageRead(fileName,noOfPages+1,buffer,pageSize);
+				DataPage * newDataPage1 = new DataPage(buffer,pageSize);
+				int inserted1 = newDataPage1->insertData(buffer,dataBuf,dataSize);
+				cout<<endl<<"Data was inserted in "<<noOfPages+1<<"th page."<<endl;
+				res2 = pageWrite(fileName,noOfPages+1,buffer,pageSize);
+				delete newDataPage1;
+				delete newDataPage;
+				delete buffer;
+				if(inserted1 > 0)
+					inserted = 1;
+				noOfPages = noOfPages + 1;
+				break;
 			}
 			if(inserted > 0)
 			{
 				// Data was inserted.....
 				cout<<endl<<"Data was inserted in "<<i<<"th page."<<endl;
 				res = pageWrite(fileName,i,buffer,pageSize);
+				delete newDataPage;
+				delete buffer;
+				break;
 			}
 			delete newDataPage;
 			delete buffer;
@@ -326,7 +403,7 @@ int searchEntries()
 				dataPos = 1;
 				char * searchData = new char [sizeof(long int)];
 				memcpy(searchData,&longIntValue,sizeof(long int));
-				resCount = newDataPage->searchData(buffer,searchData,dataPos);
+				resCount = newDataPage->searchData(buffer,searchData,dataPos,7); // 7 for long
 				delete searchData;
 			}
 			else
@@ -334,7 +411,7 @@ int searchEntries()
 				dataPos = 2;
 				char * searchData = new char [sizeof(double)];
 				memcpy(searchData,&doubleValue,sizeof(double));
-				resCount = newDataPage->searchData(buffer,searchData,dataPos);
+				resCount = newDataPage->searchData(buffer,searchData,dataPos,4); // 4 for double
 				delete searchData;
 			}
 		}
@@ -368,10 +445,24 @@ int searchEntries()
 						memcpy(&val1Data,&dataBuffer[0+sizeof(short)],sizeof(long int));
 						memcpy(&val2Data,&dataBuffer[0+sizeof(short)+sizeof(long int)+sizeof(short)],sizeof(double));
 						delete dataBuffer;
-						if(longIntValue == val1Data && doubleValue == val2Data)
+						char * longIntBuf1 = new char [sizeof(long)];
+						char * longIntBuf2 = new char [sizeof(long)];
+						char * doubleBuf1 = new char [sizeof(double)];
+						char * doubleBuf2 = new char [sizeof(double)];
+						memcpy(longIntBuf1,&longIntValue,sizeof(long int));
+						memcpy(longIntBuf2,&val1Data,sizeof(long int));
+						memcpy(doubleBuf1,&doubleValue,sizeof(double));
+						memcpy(doubleBuf2,&val2Data,sizeof(double));
+						int res1 = dataCompare(longIntBuf1,longIntBuf2,7);
+						int res2 = dataCompare(doubleBuf1,doubleBuf2,4);
+						if(res1 == 0 && res2 == 0)
 						{
 							resCount++;
 						}
+						delete longIntBuf1;
+						delete longIntBuf2;
+						delete doubleBuf1;
+						delete doubleBuf2;
 					}
 				}
 			}
@@ -406,10 +497,24 @@ int searchEntries()
 						memcpy(&val1Data,&dataBuffer[0+sizeof(short)],sizeof(long int));
 						memcpy(&val2Data,&dataBuffer[0+sizeof(short)+sizeof(long int)+sizeof(short)],sizeof(double));
 						delete dataBuffer;
-						if(longIntValue == val1Data || doubleValue == val2Data)
+						char * longIntBuf1 = new char [sizeof(long)];
+						char * longIntBuf2 = new char [sizeof(long)];
+						char * doubleBuf1 = new char [sizeof(double)];
+						char * doubleBuf2 = new char [sizeof(double)];
+						memcpy(longIntBuf1,&longIntValue,sizeof(long int));
+						memcpy(longIntBuf2,&val1Data,sizeof(long int));
+						memcpy(doubleBuf1,&doubleValue,sizeof(double));
+						memcpy(doubleBuf2,&val2Data,sizeof(double));
+						int res1 = dataCompare(longIntBuf1,longIntBuf2,7);
+						int res2 = dataCompare(doubleBuf1,doubleBuf2,4);
+						if(res1 == 0 || res2 == 0)
 						{
 							resCount++;
 						}
+						delete longIntBuf1;
+						delete longIntBuf2;
+						delete doubleBuf1;
+						delete doubleBuf2;
 					}
 				}
 			}
@@ -490,7 +595,7 @@ int deleteEntries()
 				dataPos = 1;
 				char * deleteData = new char [sizeof(long int)];
 				memcpy(deleteData,&longIntValue,sizeof(long int));
-				resCount = newDataPage->deleteData(buffer,deleteData,dataPos);
+				resCount = newDataPage->deleteData(buffer,deleteData,dataPos,7);
 				delete deleteData;
 			}
 			else
@@ -498,7 +603,7 @@ int deleteEntries()
 				dataPos = 2;
 				char * deleteData = new char [sizeof(double)];
 				memcpy(deleteData,&doubleValue,sizeof(double));
-				resCount = newDataPage->deleteData(buffer,deleteData,dataPos);
+				resCount = newDataPage->deleteData(buffer,deleteData,dataPos,4);
 				delete deleteData;
 			}
 		}
@@ -532,12 +637,26 @@ int deleteEntries()
 						memcpy(&val1Data,&dataBuffer[0+sizeof(short)],sizeof(long int));
 						memcpy(&val2Data,&dataBuffer[0+sizeof(short)+sizeof(long int)+sizeof(short)],sizeof(double));
 						delete dataBuffer;
-						if(longIntValue == val1Data && doubleValue == val2Data)
+						char * longIntBuf1 = new char [sizeof(long)];
+						char * longIntBuf2 = new char [sizeof(long)];
+						char * doubleBuf1 = new char [sizeof(double)];
+						char * doubleBuf2 = new char [sizeof(double)];
+						memcpy(longIntBuf1,&longIntValue,sizeof(long int));
+						memcpy(longIntBuf2,&val1Data,sizeof(long int));
+						memcpy(doubleBuf1,&doubleValue,sizeof(double));
+						memcpy(doubleBuf2,&val2Data,sizeof(double));
+						int res1 = dataCompare(longIntBuf1,longIntBuf2,7);
+						int res2 = dataCompare(doubleBuf1,doubleBuf2,4);
+						if(res1 == 0 && res2 == 0)
 						{
 							slotSize = (-1)*slotSize;
 							resCount++;
 							memcpy(&buffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-(j+1)*sizeof(int)],&slotSize,sizeof(int));
 						}
+						delete longIntBuf1;
+						delete longIntBuf2;
+						delete doubleBuf1;
+						delete doubleBuf2;
 					}
 				}
 			}
@@ -572,12 +691,26 @@ int deleteEntries()
 						memcpy(&val1Data,&dataBuffer[0+sizeof(short)],sizeof(long int));
 						memcpy(&val2Data,&dataBuffer[0+sizeof(short)+sizeof(long int)+sizeof(short)],sizeof(double));
 						delete dataBuffer;
-						if(longIntValue == val1Data || doubleValue == val2Data)
+						char * longIntBuf1 = new char [sizeof(long)];
+						char * longIntBuf2 = new char [sizeof(long)];
+						char * doubleBuf1 = new char [sizeof(double)];
+						char * doubleBuf2 = new char [sizeof(double)];
+						memcpy(longIntBuf1,&longIntValue,sizeof(long int));
+						memcpy(longIntBuf2,&val1Data,sizeof(long int));
+						memcpy(doubleBuf1,&doubleValue,sizeof(double));
+						memcpy(doubleBuf2,&val2Data,sizeof(double));
+						int res1 = dataCompare(longIntBuf1,longIntBuf2,7);
+						int res2 = dataCompare(doubleBuf1,doubleBuf2,4);
+						if(res1 == 0 || res2 == 0)
 						{
 							slotSize = (-1)*slotSize;
 							resCount++;
 							memcpy(&buffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-(j+1)*sizeof(int)],&slotSize,sizeof(int));
 						}
+						delete longIntBuf1;
+						delete longIntBuf2;
+						delete doubleBuf1;
+						delete doubleBuf2;
 					}
 				}
 			}
@@ -593,7 +726,211 @@ int deleteEntries()
 
 int modifyEntries()
 {
-	return -1;
+	string fileName;
+	int pageSize,modifyChoice;
+	cout<<"Enter the file name for the data page file: ";
+	cin>>fileName;
+	cout<<"Enter the page size for the file: ";
+	cin>>pageSize;
+	cout<<"Each record has 2 items."<<endl<<"Enter 1 to modify the records with Integer value."<<endl;
+	cout<<"Enter 2 to modify the records with double value."<<endl;
+	cout<<"Enter 3 to modify the records with both Integer and double values"<<endl;
+	cout<<"Enter 4 to modify the records with either of the values."<<endl;
+	cout<<"Enter your choice: ";
+	cin>>modifyChoice;
+
+	if(modifyChoice < 1 || modifyChoice > 4)
+	{
+		cout<<"Invalid choice for modify....";
+		return -1;
+	}
+
+	int longIntValue,longIntValueUpdated;
+	double doubleValue,doubleValueUpdated;
+
+	if(modifyChoice == 1 || modifyChoice == 3 || modifyChoice == 4)
+	{
+		cout<<"Enter the Integer value: ";
+		cin>>longIntValue;
+		cout<<"Enter the new Integer value: ";
+		cin>>longIntValueUpdated;
+	}
+	if(modifyChoice == 2 || modifyChoice == 3 || modifyChoice == 4)
+	{
+		cout<<"Enter the Double value: ";
+		cin>>doubleValue;
+		cout<<"Enter the new Double value: ";
+		cin>>doubleValueUpdated;
+	}
+
+	int _pageSize = pageSize;
+
+	int noOfPages;
+
+	// Opening the file to get the file size and calculate the no of pages......
+	int fd = open(fileName.c_str(),O_RDWR,0666);
+	if(fd < 0)
+	{
+		cout<<"File not found or does not exist....";
+		return -1;
+	}
+	off_t fileSize = lseek(fd,0,SEEK_END);
+	noOfPages = fileSize/pageSize;
+	close(fd);
+
+	int i,j,resCount=0,result = 0;
+	for(i=1;i<=noOfPages;i++)
+	{
+		resCount = 0;
+		char * buffer = new char [pageSize];
+		int res = pageRead(fileName,i,buffer,pageSize);
+		DataPage * newDataPage = new DataPage(buffer,pageSize);
+		cout<<"Modifying data in page "<<i<<"...."<<endl;
+		if(modifyChoice == 1 || modifyChoice == 2)
+		{
+			int dataPos;
+			if(modifyChoice == 1)
+			{
+				dataPos = 1;
+				char * modifyData = new char [sizeof(long int)];
+				char * newData = new char [sizeof(long int)];
+				memcpy(modifyData,&longIntValue,sizeof(long int));
+				memcpy(newData,&longIntValueUpdated,sizeof(long int));
+				resCount = newDataPage->updateData(buffer,modifyData,newData,dataPos,7); // 7 for long
+				delete newData;
+				delete modifyData;
+			}
+			else
+			{
+				dataPos = 2;
+				char * modifyData = new char [sizeof(double)];
+				char * newData = new char [sizeof(double)];
+				memcpy(modifyData,&doubleValue,sizeof(double));
+				memcpy(newData,&doubleValueUpdated,sizeof(double));
+				resCount = newDataPage->updateData(buffer,modifyData,newData,dataPos,4); // 4 for double
+				delete newData;
+				delete modifyData;
+			}
+		}
+		else if(modifyChoice == 3)
+		{
+			int noOfEntries = newDataPage->getslotCounter();
+			if(noOfEntries == 0)
+			{
+				cout<<"There are no entries in this page..."<<endl;
+			}
+			else
+			{
+				for(j=0;j<noOfEntries;j++)
+				{
+					int slotSize;
+					long slotPointer;
+					memcpy(&slotPointer,&buffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-j*sizeof(int)],sizeof(long));
+					memcpy(&slotSize,&buffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-(j+1)*sizeof(int)],sizeof(int));
+					if(slotSize<0)
+					{
+						// Slot has been already deleted....
+						// No need to update.....
+						continue;
+					}
+					else
+					{
+						char * dataBuffer = new char [slotSize];
+						memcpy(dataBuffer,&buffer[slotPointer],slotSize);
+						long int val1Data;
+						double val2Data;
+						memcpy(&val1Data,&dataBuffer[0+sizeof(short)],sizeof(long int));
+						memcpy(&val2Data,&dataBuffer[0+sizeof(short)+sizeof(long int)+sizeof(short)],sizeof(double));
+						
+						char * longIntBuf1 = new char [sizeof(long int)];
+						char * longIntBuf2 = new char [sizeof(long int)];
+						char * doubleBuf1 = new char [sizeof(double)];
+						char * doubleBuf2 = new char [sizeof(double)];
+						memcpy(longIntBuf1,&longIntValue,sizeof(long int));
+						memcpy(longIntBuf2,&val1Data,sizeof(long int));
+						memcpy(doubleBuf1,&doubleValue,sizeof(double));
+						memcpy(doubleBuf2,&val2Data,sizeof(double));
+						int res1 = dataCompare(longIntBuf1,longIntBuf2,7);
+						int res2 = dataCompare(doubleBuf1,doubleBuf2,4);
+						if(res1 == 0 && res2 == 0)
+						{
+							resCount++;
+							memcpy(&dataBuffer[0+sizeof(short)],&longIntValueUpdated,sizeof(long int));
+							memcpy(&dataBuffer[0+sizeof(short)+sizeof(long int)+sizeof(short)],&doubleValueUpdated,sizeof(double));
+							memcpy(&buffer[slotPointer],dataBuffer,slotSize);
+						}
+						delete longIntBuf1;
+						delete longIntBuf2;
+						delete doubleBuf1;
+						delete doubleBuf2;
+						delete dataBuffer;
+					}
+				}
+			}
+		}
+		else if(modifyChoice == 4)
+		{
+			int noOfEntries = newDataPage->getslotCounter();
+			if(noOfEntries == 0)
+			{
+				cout<<"There are no entries in this page..."<<endl;
+			}
+			else
+			{
+				for(j=0;j<noOfEntries;j++)
+				{
+					int slotSize;
+					long slotPointer;
+					memcpy(&slotPointer,&buffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-j*sizeof(int)],sizeof(long));
+					memcpy(&slotSize,&buffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-(j+1)*sizeof(int)],sizeof(int));
+					if(slotSize<0)
+					{
+						// Slot has been already deleted....
+						// No need to update.....
+						continue;
+					}
+					else
+					{
+						char * dataBuffer = new char [slotSize];
+						memcpy(dataBuffer,&buffer[slotPointer],slotSize);
+						long int val1Data;
+						double val2Data;
+						memcpy(&val1Data,&dataBuffer[0+sizeof(short)],sizeof(long int));
+						memcpy(&val2Data,&dataBuffer[0+sizeof(short)+sizeof(long int)+sizeof(short)],sizeof(double));
+						
+						char * longIntBuf1 = new char [sizeof(long)];
+						char * longIntBuf2 = new char [sizeof(long)];
+						char * doubleBuf1 = new char [sizeof(double)];
+						char * doubleBuf2 = new char [sizeof(double)];
+						memcpy(longIntBuf1,&longIntValue,sizeof(long int));
+						memcpy(longIntBuf2,&val1Data,sizeof(long int));
+						memcpy(doubleBuf1,&doubleValue,sizeof(double));
+						memcpy(doubleBuf2,&val2Data,sizeof(double));
+						int res1 = dataCompare(longIntBuf1,longIntBuf2,7);
+						int res2 = dataCompare(doubleBuf1,doubleBuf2,4);
+						if(res1 == 0 || res2 == 0)
+						{
+							resCount++;
+							memcpy(&dataBuffer[0+sizeof(short)],&longIntValueUpdated,sizeof(long int));
+							memcpy(&dataBuffer[0+sizeof(short)+sizeof(long int)+sizeof(short)],&doubleValueUpdated,sizeof(double));
+							memcpy(&buffer[slotPointer],dataBuffer,slotSize);
+						}
+						delete longIntBuf1;
+						delete longIntBuf2;
+						delete doubleBuf1;
+						delete doubleBuf2;
+
+						delete dataBuffer;
+					}
+				}
+			}
+		}
+		delete newDataPage;
+		delete buffer;
+		result = result + resCount;
+	}
+	cout<<"The no. of updated records is: "<<result<<endl;
+	return result;
 }
 
 void printhex()
@@ -768,6 +1105,9 @@ void dataPageFunction(int choice)
 	{
 		case 1: cout<<"Creating a data page file...."<<endl;
 			result = dataPageCreate();
+			break;
+		case 2: cout<<"Creating a new page at the end of the data pafe file....";
+			result = createNewPage();
 			break;
 		case 3: cout<<"Inserting an entry into the data page..."<<endl;
 			cout<<"As of now we will be inserting one random integer and one random float value..."<<endl;
