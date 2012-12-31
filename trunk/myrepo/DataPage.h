@@ -21,7 +21,6 @@
 
 #define FIRSTSLOTPTR PAGECFSPOINTER
 #define LASTSLOTPTR (FIRSTSLOTPTR-(_slotCounter-1)*sizeof(long)-(_slotCounter-1)*sizeof(int))
-#define DPSLOTSIZE (sizeof(long)+sizeof(int))
 
 using namespace std;
 
@@ -125,7 +124,9 @@ class DataPage
 		bool checkCFS(int dataSize);
 
 		int insertData(char *dataPageBuffer,char *insertData,int dataSize);
-		int deleteData(char *dataPageBuffer,char *deleteData,int dataPos);
-		int searchData(char *dataPageBuffer,char *searchData,int dataPos);
-		int updateData(char *dataPageBuffer,char *oldData,char *newData,int dataPos);
+		// It is better to add data types as comparing data as char * does not yield proper results...
+		int deleteData(char *dataPageBuffer,char *deleteData,int dataPos,short dataType);
+		int searchData(char *dataPageBuffer,char *searchData,int dataPos,short dataType);
+		// Use this update function only for fixed length updates not for data types like varchar....
+		int updateData(char *dataPageBuffer,char *oldData,char *newData,int dataPos,short dataType);
 };
