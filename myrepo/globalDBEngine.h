@@ -13,3 +13,18 @@
 #ifndef globalE
 #define NEXTPTR (PAGEPRIPTR-sizeof(int))
 #endif
+#ifndef globalF
+#define SYSDATABASEPAGESPRIORITY 50
+#endif
+#ifndef globalG
+#define DIRECTORYPAGESPRIORITY 2
+#endif
+#ifndef globalH
+#define DATAPAGESPRIORITY 1
+#endif
+#ifndef globalI
+#define FREEPAGESPRIORITY 0
+#endif
+#ifndef globalF
+#define DPSLOTSIZE (sizeof(long)+sizeof(int))
+#endif
