@@ -179,6 +179,8 @@ void DirectoryPage::setdePTR(long dePTR)
 
 void DirectoryPage::fillBuffer(char *buffer)
 {
+	memcpy(&buffer[PAGEID_PTR],&_pageID,sizeof(int));
+	memcpy(&buffer[PAGEPRIORITY_PTR],&_pagePriority,sizeof(short));
 	memcpy(&buffer[NEXT_PTR],&_nextDirectoryPage,sizeof(int));
 	memcpy(&buffer[NOE_PTR],&_noe,sizeof(int));
 	memcpy(&buffer[MAXTFS_PTR],&_maxtfs,sizeof(int));
@@ -384,22 +386,51 @@ int DirectoryPage::searchDirectoryPageEntry(int dataPageNo,char *directoryBuffer
 	}
 }
 
-void DirectoryPage::printSlotsInformation()
+void DirectoryPage::printSlotsInformation(char *buffer)
 {
-	char *buffer = new char [DEPAGESIZE];
-	fillBuffer(buffer);
+	/*char * buffer = new char [DEPAGESIZE];
+	fillBuffer(buffer);*/
 	for(int i=0;i<_noe;i++)
 	{
-		bool flag;
-		memcpy(&flag,&buffer[FIRSTDESLOTPTR-((i+1)*sizeof(bool))],sizeof(bool));
+		//bool flag;
+		char deleted;
+		memcpy(&deleted,&buffer[FIRSTDESLOTPTR-(i*sizeof(char))],sizeof(char));
 		char *entryBuffer = new char [DESIZE];
 		memcpy(entryBuffer,&buffer[0+i*DESIZE],DESIZE);
 		DirectoryPageEntry *dirPageEntry = new DirectoryPageEntry(entryBuffer);
-		if(flag == 1)
-			cout<<dirPageEntry->getPageID()<<"\t\t"<<dirPageEntry->getTFS()<<"\t\t"<<"False";
+		if(deleted == '1')
+			cout<<dirPageEntry->getPageID()<<"\t\t"<<dirPageEntry->getTFS()<<"\t\t"<<"False"<<endl;
 		else
-			cout<<dirPageEntry->getPageID()<<"\t\t"<<dirPageEntry->getTFS()<<"\t\t"<<"True";
+			cout<<dirPageEntry->getPageID()<<"\t\t"<<dirPageEntry->getTFS()<<"\t\t"<<"True"<<endl;
 		delete dirPageEntry;
+		delete entryBuffer;
 	}
-	delete buffer;
+	/*delete buffer;*/
+}
+
+bool DirectoryPage::checkMaxTFS(int dataSize)
+{
+	if(_maxtfs < dataSize + DPSLOTSIZE)
+		return 0;
+	return 1;
+}
+
+int DirectoryPage::updateMaxTFS(char *buffer)
+{
+	int tfs=0;
+	for(int i=0;i<_noe;i++)
+	{
+		//bool flag;
+		char deleted;
+		memcpy(&deleted,&buffer[FIRSTDESLOTPTR-(i*sizeof(char))],sizeof(char));
+		char *entryBuffer = new char [DESIZE];
+		memcpy(entryBuffer,&buffer[0+i*DESIZE],DESIZE);
+		DirectoryPageEntry *dirPageEntry = new DirectoryPageEntry(entryBuffer);
+		if(deleted == '1' && tfs < dirPageEntry->getTFS())
+			tfs = dirPageEntry->getTFS();
+		delete dirPageEntry;
+		delete entryBuffer;
+	}
+	_maxtfs = tfs;
+	memcpy(&buffer[MAXTFS_PTR],&_maxtfs,sizeof(int));
 }
