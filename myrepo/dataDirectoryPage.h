@@ -6,6 +6,8 @@
 #include<cstring>
 #include<math.h>
 
+#include"globalDBEngine.h"
+
 #define DEPAGESIZE _pageSize
 
 #define PAGEID_PTR (DEPAGESIZE-sizeof(int))
@@ -27,7 +29,7 @@
 //#define LASTSLOTPTR FIRSTSLOTPTR-(_noe-1)*sizeof(long)-(_noe-1)*sizeof(bool)
 #define LASTDESLOTPTR FIRSTSLOTPTR-(_noe-1)*sizeof(bool)
 
-#define DPSLOTSIZE sizeof(long)+sizeof(int)
+
 
 using namespace std;
 
@@ -104,9 +106,23 @@ class DirectoryPage
 			_remDirectoryPageSize = DEENTRYSPACE;
 		}
 
+		DirectoryPage(int pageSize,int pageID)
+		{
+			_pageSize = pageSize;
+			_nextDirectoryPage = -1;
+			_noe = 0;
+			_maxtfs = 0;
+			_dePTR = 0;
+			_remDirectoryPageSize = DEENTRYSPACE;
+			_pageID = pageID;
+		}
+
 		DirectoryPage(char *buffer)
 		{
-			memcpy(&_nextDirectoryPage,&buffer[NEXT_PTR],sizeof(int));
+			_pageSize = 8192;
+			memcpy(&_pageID,&buffer[PAGEIDPTR],sizeof(int));
+			memcpy(&_pagePriority,&buffer[PAGEPRIPTR],sizeof(short));
+			memcpy(&_nextDirectoryPage,&buffer[NEXTPTR],sizeof(int));
 			memcpy(&_noe,&buffer[NOE_PTR],sizeof(int));
 			memcpy(&_maxtfs,&buffer[MAXTFS_PTR],sizeof(int));
 			memcpy(&_remDirectoryPageSize,&buffer[REMSIZE_PTR],sizeof(int));
@@ -117,7 +133,9 @@ class DirectoryPage
 		DirectoryPage(char *buffer,int pageSize)
 		{
 			_pageSize = pageSize;
-			memcpy(&_nextDirectoryPage,&buffer[NEXT_PTR],sizeof(int));
+			memcpy(&_pageID,&buffer[PAGEIDPTR],sizeof(int));
+			memcpy(&_pagePriority,&buffer[PAGEPRIPTR],sizeof(short));
+			memcpy(&_nextDirectoryPage,&buffer[NEXTPTR],sizeof(int));
 			memcpy(&_noe,&buffer[NOE_PTR],sizeof(int));
 			memcpy(&_maxtfs,&buffer[MAXTFS_PTR],sizeof(int));
 			memcpy(&_remDirectoryPageSize,&buffer[REMSIZE_PTR],sizeof(int));
@@ -159,8 +177,9 @@ class DirectoryPage
 
 		void fillBuffer(char *buffer);
 		bool checkDirectoryEntryInsertion();
-		void printSlotsInformation();
-		//bool checkTFS(int dataSize);
+		void printSlotsInformation(char *buffer);
+		bool checkMaxTFS(int dataSize);
+		int updateMaxTFS(char *buffer);
 
 		int insertDirectoryPageEntry(char *entryBuffer,char *directoryBuffer);
 		//int insertDirectoryPageEntry(char *entryBuffer,char *directoryBuffer,int pageNo);
