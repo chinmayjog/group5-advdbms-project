@@ -2,6 +2,8 @@
 
 #include"DataPage.h"
 
+#include"DataTypes.h"
+
 /*
 class DataPage
 {
@@ -220,7 +222,7 @@ int DataPage::insertData(char *dataPageBuffer,char *insertData,int dataSize)
 	}
 }
 
-int DataPage::deleteData(char *dataPageBuffer,char *deleteData,int dataPos)
+int DataPage::deleteData(char *dataPageBuffer,char *deleteData,int dataPos,short dataType)
 {
 	// Function returns the total no. of records which matched the data and were deleted.....
 	if(_slotCounter == 0)
@@ -258,7 +260,7 @@ int DataPage::deleteData(char *dataPageBuffer,char *deleteData,int dataPos)
 				// This is the position at which data has to be verified....
 				char * posData = new char [offset];
 				memcpy(posData,&dataBuf[dataPointer],offset);
-				if(strcmp(posData,deleteData)==0)
+				if(/*strcmp(posData,deleteData)==0*/dataCompare(posData,deleteData,dataType)==0)
 				{
 					cout<<"Data found at slot ID: "<<i<<" ";
 					cout<<"Deleting it....."<<endl;
@@ -277,7 +279,7 @@ int DataPage::deleteData(char *dataPageBuffer,char *deleteData,int dataPos)
 	return resCount;
 }
 
-int DataPage::searchData(char *dataPageBuffer,char *searchData,int dataPos)
+int DataPage::searchData(char *dataPageBuffer,char *searchData,int dataPos,short dataType)
 {
 	// Function returns the total no. of records which matched the data....
 	if(_slotCounter == 0)
@@ -315,7 +317,7 @@ int DataPage::searchData(char *dataPageBuffer,char *searchData,int dataPos)
 				// This is the position at which data has to be verified....
 				char * posData = new char [offset];
 				memcpy(posData,&dataBuf[dataPointer],offset);
-				if(strcmp(posData,searchData)==0)
+				if(/*strcmp(posData,searchData)==0*/dataCompare(posData,searchData,dataType)==0)
 				{
 					cout<<"Data found at slot ID: "<<i<<endl;
 					resCount++;
@@ -331,7 +333,7 @@ int DataPage::searchData(char *dataPageBuffer,char *searchData,int dataPos)
 	return resCount;
 }
 
-int DataPage::updateData(char *dataPageBuffer,char *oldData,char *newData,int dataPos)
+int DataPage::updateData(char *dataPageBuffer,char *oldData,char *newData,int dataPos,short dataType)
 {
 	// Function returns the total no. of records which matched the data and were updated.....
 	// New data integrity check has to be done by the caller... No check will be done here
@@ -370,7 +372,7 @@ int DataPage::updateData(char *dataPageBuffer,char *oldData,char *newData,int da
 				// This is the position at which data has to be verified....
 				char * posData = new char [offset];
 				memcpy(posData,&dataBuf[dataPointer],offset);
-				if(strcmp(posData,oldData)==0)
+				if(/*strcmp(posData,oldData)==0*/dataCompare(posData,oldData,dataType)==0)
 				{
 					cout<<"Data found at slot ID: "<<i;
 					resCount++;
