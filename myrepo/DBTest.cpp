@@ -26,16 +26,19 @@ int createTable()
 	cout<<"Enter the no. of columns: ";
 	cin>>colCount;
 	// Check if table name is valid and usable
+	// If available, do not create a SysTables entry for it, return error
+	// Create a SysTables entry for the table
 	if(colCount == 0)
 	{
 		// The user has not specified any columns.
 		// The columns has to be specified, by adding them through alter query
 		// Insertion of entries to the table not possible.
-		// Create a SysTables Entry for it
 	}
 	for(int i=0;i<colCount;i++)
 	{
-
+		// Create entry for each column....
+		// Check whether column names are unique while inserting it.....
+		// If not return error
 	}
 }
 
