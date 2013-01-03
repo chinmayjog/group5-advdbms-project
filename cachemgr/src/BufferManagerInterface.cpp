@@ -53,7 +53,7 @@ void openDB(BufferManager *bu){
 
 void readDB(BufferManager *bu){
 	int datafileID, pagen, p;
-	unsigned char *dest = new unsigned char[(*bu).getPageSize()];
+	char *dest = new char[(*bu).getPageSize()];
 	datafileID = getdatafileID();
 	cout<<endl<<" Enter the page number [0-"<<(*bu).getPageCount(datafileID) - 1<<"]: ";
 	cin>>pagen;
@@ -64,7 +64,7 @@ void readDB(BufferManager *bu){
 
 void writeDB(BufferManager *bu){
 	int datafileID, pagen, p, ch;
-	unsigned char *src = new unsigned char[(*bu).getPageSize()];
+	char *src = new char[(*bu).getPageSize()];
 	datafileID = getdatafileID();
 	cout<<endl<<" Enter the page number [0-"<<(*bu).getPageCount(datafileID) - 1<<"]: ";
 	cin>>pagen;
