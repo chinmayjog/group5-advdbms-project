@@ -24,7 +24,7 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
     
 };
 
-%token SELECT INSERT CREATE DELETE UPDATE USE DROP SHOW ADD MODIFY ALTER
+%token SELECT INSERT CREATE DELETE UPDATE USE DROP SHOW ADD MODIFY ALTER PRIMARY KEY AUTOINCREMENT DEFAULT
 %token <id> ID
 %token DATABASE DATABASES TABLE TABLES DISTINCT FROM WHERE INTO VALUES INDEX ON COLUMN
 %token LE LT GE GT EQ NE OR AND LIKE GROUP HAVING ORDER ASC DESC IN END QUOTE LIMIT SET
@@ -108,10 +108,73 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 										strcpy((q->columns[q->cntColumns]).type, $2); 
 										q->cntColumns = q->cntColumns + 1;
 									}
+				| ID ID PRIMARY KEY',' columnlist {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, $2); 
+										(q->columns[q->cntColumns]).isPrimary = 1;
+										q->cntColumns = q->cntColumns + 1;
+										
+									}
+				| ID ID AUTOINCREMENT',' columnlist {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, $2); 
+										(q->columns[q->cntColumns]).isAutoIncrement = 1;
+										q->cntColumns = q->cntColumns + 1;
+										
+									}
+				| ID ID PRIMARY KEY AUTOINCREMENT',' columnlist {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, $2); 
+										(q->columns[q->cntColumns]).isPrimary = 1;
+										(q->columns[q->cntColumns]).isAutoIncrement = 1;
+										q->cntColumns = q->cntColumns + 1;
+										
+									}
+				| ID ID DEFAULT INTNUM',' columnlist {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, $2); 
+										if(strcmp((q->columns[q->cntColumns]).type, "short") == 0){
+											(q->columns[q->cntColumns]).defaultshort = $4;
+										}
+										if(strcmp((q->columns[q->cntColumns]).type, "int") == 0){
+											(q->columns[q->cntColumns]).defaultint = $4;
+										}if(strcmp((q->columns[q->cntColumns]).type, "long") == 0){
+											(q->columns[q->cntColumns]).defaultlong = $4;
+										}
+										(q->columns[q->cntColumns]).isPrimary = 0;
+										q->cntColumns = q->cntColumns + 1;
+										
+									}
+				| ID ID DEFAULT DBLNUM',' columnlist {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, $2); 
+										if(strcmp((q->columns[q->cntColumns]).type, "float") == 0){
+											(q->columns[q->cntColumns]).defaultfloat = $4;
+										}if(strcmp((q->columns[q->cntColumns]).type, "double") == 0){
+											(q->columns[q->cntColumns]).defaultdouble = $4;
+										}
+										(q->columns[q->cntColumns]).isPrimary = 0;
+										q->cntColumns = q->cntColumns + 1;
+										
+									}
 				| ID VARCHAR LPAREN INTNUM RPAREN',' columnlist {
 										strcpy((q->columns[q->cntColumns]).name, $1); 
 										strcpy((q->columns[q->cntColumns]).type, "varchar"); 
 										(q->columns[q->cntColumns]).sizeofField1 = $4;
+										q->cntColumns = q->cntColumns + 1;
+									}
+				| ID VARCHAR LPAREN INTNUM RPAREN PRIMARY KEY',' columnlist {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, "varchar"); 
+										(q->columns[q->cntColumns]).sizeofField1 = $4;
+										(q->columns[q->cntColumns]).isPrimary = 1;
+										q->cntColumns = q->cntColumns + 1;
+									}
+				| ID VARCHAR LPAREN INTNUM RPAREN DEFAULT ID',' columnlist {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, "varchar"); 
+										(q->columns[q->cntColumns]).sizeofField1 = $4;
+										strcpy((q->columns[q->cntColumns]).defaultstring, $7);
 										q->cntColumns = q->cntColumns + 1;
 									}
 				| ID CHAR LPAREN INTNUM RPAREN',' columnlist {
@@ -120,23 +183,113 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 										(q->columns[q->cntColumns]).sizeofField1 = $4;
 										q->cntColumns = q->cntColumns + 1;
 									}
+				| ID CHAR LPAREN INTNUM RPAREN PRIMARY KEY',' columnlist {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, "char"); 
+										(q->columns[q->cntColumns]).sizeofField1 = $4;
+										(q->columns[q->cntColumns]).isPrimary = 1;
+										q->cntColumns = q->cntColumns + 1;
+									}
+				| ID CHAR LPAREN INTNUM RPAREN DEFAULT ID',' columnlist {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, "char"); 
+										(q->columns[q->cntColumns]).sizeofField1 = $4;
+										strcpy((q->columns[q->cntColumns]).defaultstring, $7);
+										q->cntColumns = q->cntColumns + 1;
+									}
 				| ID ID {
 							strcpy((q->columns[q->cntColumns]).name, $1); 
 							strcpy((q->columns[q->cntColumns]).type, $2); 
 							q->cntColumns = q->cntColumns + 1;
 						}
+				| ID ID PRIMARY KEY{
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, $2); 
+										(q->columns[q->cntColumns]).isPrimary = 1;
+										q->cntColumns = q->cntColumns + 1;
+										
+									}
+				| ID ID AUTOINCREMENT{
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, $2); 
+										(q->columns[q->cntColumns]).isAutoIncrement = 1;
+										q->cntColumns = q->cntColumns + 1;
+										
+									}
+				| ID ID PRIMARY KEY AUTOINCREMENT {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, $2); 
+										(q->columns[q->cntColumns]).isPrimary = 1;
+										(q->columns[q->cntColumns]).isAutoIncrement = 1;
+										q->cntColumns = q->cntColumns + 1;
+										
+									}
+				| ID ID DEFAULT INTNUM{
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, $2); 
+										if(strcmp((q->columns[q->cntColumns]).type, "short") == 0){
+											(q->columns[q->cntColumns]).defaultshort = $4;
+										}
+										if(strcmp((q->columns[q->cntColumns]).type, "int") == 0){
+											(q->columns[q->cntColumns]).defaultint = $4;
+										}if(strcmp((q->columns[q->cntColumns]).type, "long") == 0){
+											(q->columns[q->cntColumns]).defaultlong = $4;
+										}	
+										(q->columns[q->cntColumns]).isPrimary = 0;
+										q->cntColumns = q->cntColumns + 1;
+									}
+				| ID ID DEFAULT DBLNUM{
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, $2); 
+										if(strcmp((q->columns[q->cntColumns]).type, "float") == 0){
+											(q->columns[q->cntColumns]).defaultfloat = $4;
+										}if(strcmp((q->columns[q->cntColumns]).type, "double") == 0){
+											(q->columns[q->cntColumns]).defaultdouble = $4;
+										}
+										(q->columns[q->cntColumns]).isPrimary = 0;
+										q->cntColumns = q->cntColumns + 1;
+										
+									}
 				| ID VARCHAR LPAREN INTNUM RPAREN {				
 							strcpy((q->columns[q->cntColumns]).name, $1); 
 							strcpy((q->columns[q->cntColumns]).type, "varchar"); 
 							(q->columns[q->cntColumns]).sizeofField1 = $4;
 							q->cntColumns = q->cntColumns + 1;
 						}
+				| ID VARCHAR LPAREN INTNUM RPAREN PRIMARY KEY {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, "varchar"); 
+										(q->columns[q->cntColumns]).sizeofField1 = $4;
+										(q->columns[q->cntColumns]).isPrimary = 1;
+										q->cntColumns = q->cntColumns + 1;
+									}
+				| ID VARCHAR LPAREN INTNUM RPAREN DEFAULT ID {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, "varchar"); 
+										(q->columns[q->cntColumns]).sizeofField1 = $4;
+										strcpy((q->columns[q->cntColumns]).defaultstring, $7);
+										q->cntColumns = q->cntColumns + 1;
+									}
 				| ID CHAR LPAREN INTNUM RPAREN {
 							strcpy((q->columns[q->cntColumns]).name, $1); 
 							strcpy((q->columns[q->cntColumns]).type, "char"); 
 							(q->columns[q->cntColumns]).sizeofField1 = $4;
 							q->cntColumns = q->cntColumns + 1;
 						}
+				| ID CHAR LPAREN INTNUM RPAREN PRIMARY KEY {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, "char"); 
+										(q->columns[q->cntColumns]).sizeofField1 = $4;
+										(q->columns[q->cntColumns]).isPrimary = 1;
+										q->cntColumns = q->cntColumns + 1;
+									}
+				| ID CHAR LPAREN INTNUM RPAREN DEFAULT ID {
+										strcpy((q->columns[q->cntColumns]).name, $1); 
+										strcpy((q->columns[q->cntColumns]).type, "char"); 
+										(q->columns[q->cntColumns]).sizeofField1 = $4;
+										strcpy((q->columns[q->cntColumns]).defaultstring, $7);
+										q->cntColumns = q->cntColumns + 1;
+									}
 				;
 				
 	STA2:		INSERT INTO ID LPAREN columnorder RPAREN VALUES LPAREN values RPAREN {strcpy(q->type, "INSERT1"); strcpy(q->table ,$3);}

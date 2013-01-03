@@ -3,17 +3,6 @@
 enum conjunction {EQL, NEQL, LET, LEQ, GRT, GEQ, ANDC, ORC, LIKEC, INC};
 enum optype {INTEGER, FLOAT, STRING, DT, TM, DTTM, STRUCTPTR, ARRAY};
 
-typedef struct columnStruct{
-	char name[50];
-	char type[20];
-	char function[10];
-	int sizeofField1;
-	int sizeofField2; //only for decfloat
-	//datetime struct
-	//short shortdefault;
-	// similarly other guys
-}columnStruct;
-
 typedef struct dateStruct{
 	int dd;
 	int mm;
@@ -25,6 +14,23 @@ typedef struct dateStruct{
 }dateStruct;
 
 dateStruct* getDate(char []);
+
+typedef struct columnStruct{
+	char name[50];
+	char type[20];
+	char function[10];
+	int sizeofField1;
+	int sizeofField2; //only for decfloat
+	dateStruct defaultdate;
+	short defaultshort;
+	int defaultint;
+	long defaultlong;
+	float defaultfloat;
+	double defaultdouble;
+	char defaultstring[257];
+	short isPrimary;
+	short isAutoIncrement;
+}columnStruct;
 
 typedef struct insertionStruct{
 	char colname[50];
