@@ -55,7 +55,7 @@ class BufferManager {
 		int  findEmptyCachePage();
 		int  getReplacablePage(PagePriority p);
 		bool writeBufferPagetoDisk(int bufferId);
-		int  writePageToBuffer(int fdID, int pgNo, PagePriority p, unsigned char *src);
+		int  writePageToBuffer(int fdID, int pgNo, PagePriority p, char *src);
 		
 		
 	public:
@@ -67,8 +67,8 @@ class BufferManager {
 		 int  getPageSize();
 		 int  createDB(string filename, int sizeinBytes);
 		 int  openDB(string filename);
-		 bool readDB(int fdID, int pgNo, PagePriority p, unsigned char* dest);
-		 bool writeDB(int fdID, int pgNo, PagePriority p, unsigned char* src);
+		 bool readDB(int fdID, int pgNo, PagePriority p, char* dest);
+		 bool writeDB(int fdID, int pgNo, PagePriority p, char* src);
 		 int  expandDB(int mdtID, int size);
 		 int  closeDB(int fdID);
 		 void closeAll();

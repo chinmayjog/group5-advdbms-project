@@ -61,7 +61,7 @@ bool BufferManager::commitFile(int mdtID){
 }
 
 
-int BufferManager::writePageToBuffer(int fdID, int pgNo, PagePriority p, unsigned char *src){
+int BufferManager::writePageToBuffer(int fdID, int pgNo, PagePriority p, char *src){
 	int bufId = -1;
 	int offset;
 	MemBuffer b;
@@ -93,7 +93,7 @@ bool BufferManager::writeBufferPagetoDisk(int bufferId){
 	long eof = mdt[b.mdtID].fd.tellg();
 	mdt[b.mdtID].fd.seekp(b.pageNo*pageSize, ios::beg);
 	if(eof >= (mdt[b.mdtID].fd.tellp()+(long)pageSize)){
-		mdt[b.mdtID].fd.write(reinterpret_cast<const char *>(bufferPool+offset+sizeofheader), pageSize);
+		mdt[b.mdtID].fd.write((char *)bufferPool+offset+sizeofheader, pageSize);
 		b.dirty=false;
 		b.pageNo = -1;
 		b.p_priority = NOP;
@@ -264,7 +264,7 @@ int BufferManager::openDB(string filename){
 	return -2;
 }
 
-bool BufferManager::readDB(int fdID, int pgNo, PagePriority p, unsigned char* dest){
+bool BufferManager::readDB(int fdID, int pgNo, PagePriority p, char* dest){
 	int bufId, offset;
 	if(mdt[fdID].dbName == "")
 		return false;
@@ -277,7 +277,7 @@ bool BufferManager::readDB(int fdID, int pgNo, PagePriority p, unsigned char* de
 		if(bufId != -1)
 		{
 			offset = bufId*sizeofbuffer;
-			memcpy((void*)dest, (bufferPool+offset+sizeofheader), pageSize);
+			memcpy((char*)dest, (bufferPool+offset+sizeofheader), pageSize);
 			return true;
 		}
 		else
@@ -302,7 +302,7 @@ bool BufferManager::readDB(int fdID, int pgNo, PagePriority p, unsigned char* de
 	return false;
 }
 
-bool BufferManager::writeDB(int fdID, int pgNo, PagePriority p, unsigned char* src){
+bool BufferManager::writeDB(int fdID, int pgNo, PagePriority p, char* src){
 	if(mdt[fdID].dbName == "")
 		return false;
 	if(!mdt[fdID].fd)
