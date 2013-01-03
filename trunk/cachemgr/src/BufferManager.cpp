@@ -215,12 +215,12 @@ int BufferManager::initializeCache(int numberOfPages){
 
 int BufferManager::createDB(string filename, int sizeinBytes){
 	fstream dbFile;
-	dbFile.open(("data/"+filename+".txt").c_str(), ios::in | ios::binary);
+	dbFile.open(filename.c_str(), ios::in | ios::binary);
 	if(dbFile){
 		dbFile.close();
 		return -1;
 	}
-	dbFile.open(("data/"+filename+".txt").c_str(), ios::out | ios::binary);
+	dbFile.open(filename.c_str(), ios::out | ios::binary);
 	if(!dbFile)
 		return -2;
 	dbFile.seekp(sizeinBytes-1);
@@ -236,7 +236,7 @@ int BufferManager::openDB(string filename){
 		if((mdtptr = getEmptyMDT())!= -1){
 			mdt[mdtptr].id = mdtptr;
 			mdt[mdtptr].dbName = filename;
-			mdt[mdtptr].fd.open(("data/"+filename+".txt").c_str(), ios::in | ios::out | ios::binary);
+			mdt[mdtptr].fd.open(filename.c_str(), ios::in | ios::out | ios::binary);
 			if(!mdt[mdtptr].fd){
 				return -2;
 			}
@@ -253,7 +253,7 @@ int BufferManager::openDB(string filename){
 		}
 		else
 		{
-			mdt[mdtptr].fd.open(("data/"+filename+".txt").c_str(), ios::in | ios::out | ios::binary);
+			mdt[mdtptr].fd.open(filename.c_str(), ios::in | ios::out | ios::binary);
 			if(!mdt[mdtptr].fd){
 				return -2;
 			}
