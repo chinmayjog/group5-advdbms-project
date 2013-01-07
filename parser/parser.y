@@ -29,7 +29,7 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 %token DATABASE DATABASES TABLE TABLES DISTINCT FROM WHERE INTO VALUES INDEX ON COLUMN
 %token LE LT GE GT EQ NE OR AND LIKE GROUP HAVING ORDER ASC DESC IN END QUOTE LIMIT SET
 %token CHAR VARCHAR 
-%token <datetm>DATETIME
+%token <datetm>DATETIME DATE TIME
 %token <integer> INTNUM
 %token <flt> DBLNUM
 %right  LPAREN RPAREN  
@@ -303,10 +303,14 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 				| INTNUM',' values {q->ins[q->cntColumns].i = $1; strcpy(q->ins[q->cntColumns].type, "integer"); q->cntColumns = q->cntColumns + 1;}
 				| DBLNUM',' values {q->ins[q->cntColumns].f = $1; strcpy(q->ins[q->cntColumns].type, "float"); q->cntColumns = q->cntColumns + 1;}
 				| DATETIME',' values {q->ins[q->cntColumns].d = getDate($1); strcpy(q->ins[q->cntColumns].type, "datetime"); q->cntColumns = q->cntColumns + 1;}
+				| DATE',' values {q->ins[q->cntColumns].d = getDate($1); strcpy(q->ins[q->cntColumns].type, "date"); q->cntColumns = q->cntColumns + 1;}
+				| TIME',' values {q->ins[q->cntColumns].d = getDate($1); strcpy(q->ins[q->cntColumns].type, "time"); q->cntColumns = q->cntColumns + 1;}
 				|QUOTE ID QUOTE {strcpy(q->ins[q->cntColumns].str, $2); strcpy(q->ins[q->cntColumns].type, "string"); q->cntColumns = q->cntColumns + 1;}
 				| INTNUM {q->ins[q->cntColumns].i = $1; strcpy(q->ins[q->cntColumns].type, "integer"); q->cntColumns = q->cntColumns + 1;}
  				| DBLNUM {q->ins[q->cntColumns].f = $1; strcpy(q->ins[q->cntColumns].type, "float"); q->cntColumns = q->cntColumns + 1;}
  				| DATETIME {q->ins[q->cntColumns].d = getDate($1); strcpy(q->ins[q->cntColumns].type, "datetime"); q->cntColumns = q->cntColumns + 1;}
+ 				| DATE {q->ins[q->cntColumns].d = getDate($1); strcpy(q->ins[q->cntColumns].type, "date"); q->cntColumns = q->cntColumns + 1;}
+				| TIME {q->ins[q->cntColumns].d = getDate($1); strcpy(q->ins[q->cntColumns].type, "time"); q->cntColumns = q->cntColumns + 1;}
 				;
 	
 	STA3:		DELETE FROM ID {strcpy(q->type, "DELETE"); strcpy(q->table ,$3);}
@@ -321,10 +325,14 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 				|ID EQ INTNUM',' updateList {strcpy(q->ins[q->cntColumns].colname, $1); q->ins[q->cntColumns].i = $3; strcpy(q->ins[q->cntColumns].type, "integer"); q->cntColumns = q->cntColumns + 1;}
 				|ID EQ DBLNUM',' updateList {strcpy(q->ins[q->cntColumns].colname, $1); q->ins[q->cntColumns].f = $3; strcpy(q->ins[q->cntColumns].type, "float"); q->cntColumns = q->cntColumns + 1;}
 				|ID EQ DATETIME',' updateList {strcpy(q->ins[q->cntColumns].colname, $1); q->ins[q->cntColumns].d = getDate($3); strcpy(q->ins[q->cntColumns].type, "datetime"); q->cntColumns = q->cntColumns + 1;}
+				|ID EQ DATE',' updateList {strcpy(q->ins[q->cntColumns].colname, $1); q->ins[q->cntColumns].d = getDate($3); strcpy(q->ins[q->cntColumns].type, "date"); q->cntColumns = q->cntColumns + 1;}
+				|ID EQ TIME',' updateList {strcpy(q->ins[q->cntColumns].colname, $1); q->ins[q->cntColumns].d = getDate($3); strcpy(q->ins[q->cntColumns].type, "time"); q->cntColumns = q->cntColumns + 1;}
 				|ID EQ QUOTE ID QUOTE {strcpy(q->ins[q->cntColumns].colname, $1); strcpy(q->ins[q->cntColumns].str, $4); strcpy(q->ins[q->cntColumns].type, "string"); q->cntColumns = q->cntColumns + 1;}
 				|ID EQ INTNUM {strcpy(q->ins[q->cntColumns].colname, $1); q->ins[q->cntColumns].i = $3; strcpy(q->ins[q->cntColumns].type, "integer"); q->cntColumns = q->cntColumns + 1;}
 				|ID EQ DBLNUM {strcpy(q->ins[q->cntColumns].colname, $1); q->ins[q->cntColumns].f = $3; strcpy(q->ins[q->cntColumns].type, "float"); q->cntColumns = q->cntColumns + 1;}
 				|ID EQ DATETIME {strcpy(q->ins[q->cntColumns].colname, $1); q->ins[q->cntColumns].d = getDate($3); strcpy(q->ins[q->cntColumns].type, "datetime"); q->cntColumns = q->cntColumns + 1;}
+				|ID EQ DATE {strcpy(q->ins[q->cntColumns].colname, $1); q->ins[q->cntColumns].d = getDate($3); strcpy(q->ins[q->cntColumns].type, "date"); q->cntColumns = q->cntColumns + 1;}
+				|ID EQ TIME {strcpy(q->ins[q->cntColumns].colname, $1); q->ins[q->cntColumns].d = getDate($3); strcpy(q->ins[q->cntColumns].type, "time"); q->cntColumns = q->cntColumns + 1;}
 				;
 
 	STA5: 		SELECT attributeList FROM ID ST2 {strcpy(q->type ,"SELECT"); strcpy(q->table ,$4);}
@@ -397,6 +405,8 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 			   | LHS IN LPAREN RHSDBL RPAREN {(a[count])->cond = INC; }
 			   | LHS IN LPAREN RHSSTR RPAREN {(a[count])->cond = INC; }
 			   | LHS IN LPAREN RHSDTTM RPAREN {(a[count])->cond = INC; }
+			   | LHS IN LPAREN RHSDT RPAREN {(a[count])->cond = INC; }
+			   | LHS IN LPAREN RHSTM RPAREN {(a[count])->cond = INC; }
                ;
     LHS        : ID {a[count] = newConditionStruct(); strcpy((a[count])->colname, $1);  (a[count])->lt = STRING;}
 			   ;
@@ -404,6 +414,8 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
                | INTNUM {(a[count])->rightint[++(a[count])->rightcnt] = $1; (a[count])->rt = INTEGER;} 
 			   | DBLNUM {(a[count])->rightflt[++(a[count])->rightcnt] = $1; (a[count])->rt = FLOAT;}
 			   | DATETIME {a[count]->rightdttm[++(a[count])->rightcnt] = getDate($1); (a[count])->rt = DTTM;}
+			   | DATE {a[count]->rightdttm[++(a[count])->rightcnt] = getDate($1); (a[count])->rt = DT;}
+			   | TIME {a[count]->rightdttm[++(a[count])->rightcnt] = getDate($1); (a[count])->rt = TM;}
 			   | QUOTE ID QUOTE {
 									strcpy((a[count])->rightstr[++(a[count])->rightcnt], "\""); 
 									strcat((a[count])->rightstr[(a[count])->rightcnt], $2); 
@@ -419,6 +431,12 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 			   ;
 	RHSDTTM	   :DATETIME',' RHSDTTM {(a[count])->rightdttm[++(a[count])->rightcnt] = getDate($1); (a[count])->rt = DTTM;} 
 			   | DATETIME  {(a[count])->rightdttm[++(a[count])->rightcnt] = getDate($1); (a[count])->rt = DTTM;}  
+			   ;
+	RHSDT	   :DATE',' RHSDT {(a[count])->rightdttm[++(a[count])->rightcnt] = getDate($1); (a[count])->rt = DT;} 
+			   | DATE  {(a[count])->rightdttm[++(a[count])->rightcnt] = getDate($1); (a[count])->rt = DT;}  
+			   ;
+	RHSTM	   :TIME',' RHSTM {(a[count])->rightdttm[++(a[count])->rightcnt] = getDate($1); (a[count])->rt = TM;} 
+			   | TIME  {(a[count])->rightdttm[++(a[count])->rightcnt] = getDate($1); (a[count])->rt = TM;}  
 			   ;
 	RHSSTR	   :QUOTE ID QUOTE',' RHSSTR {
 									strcpy((a[count])->rightstr[++(a[count])->rightcnt], "\""); 
@@ -476,12 +494,18 @@ dateStruct* getDate(char dt[]){
 	d->ss = 0;
 	d->tz = 0;
 	char t[5];
-	int i=-1, j=-1, flag = 0;
+	int i=-1, j=-1, flag = 0, dtflag = 0;
 	if(strlen(dt) > 0){
 		do{
 			i++;
 			j++;
 			if(dt[i]=='/' || dt[i]==' ' || dt[i]==':' || dt[i]=='\0'){
+				if(dtflag == 0 && dt[i] == '/')
+					dtflag = 1;
+				if(dtflag == 0 && dt[i] == ':'){
+					dtflag = 3;
+					flag =3;
+				}
 				t[j]='\0';
 				j = -1;
 				switch(flag)
