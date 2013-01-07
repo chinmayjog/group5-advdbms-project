@@ -2,13 +2,7 @@
 // Main DB Class file
 
 #include"DB.h"
-#include"DBHeader.h"
-#include"SysTables.h"
-#include"SysColumns.h"
-#include"SysIndex.h"
-#include"FreeList.h"
-
-#include"FileHandling.cpp"
+//#include"FileHandling.cpp"
 
 /*class DB
 {
@@ -101,6 +95,16 @@ void DB::setFreePagePTR(int freePagePTR)
 	_freePagePTR = freePagePTR;
 }
 
+int DB::getLastFreePagePTR()
+{
+	return _lastFreePagePTR;
+}
+
+void DB::setLastFreePagePTR(int lastFreePagePTR)
+{
+	_lastFreePagePTR = lastFreePagePTR;
+}
+
 int DB::getNoSysTablePages()
 {
 	return _noSysTablePages;
@@ -149,84 +153,796 @@ int DB::extendFreeSpace()
 	// Update the no. of pages
 	// Update the free pages
 	// Write the page back
+
+	int sizeToBeExtended = 1024*_pageSize;
+
+	BufferManager *bu = BufferManager::getBufferManager();
+
+	int result = (*bu).expandDB(fdID,sizeToBeExtended);
+
+	if(result != fdID)
+	{
+		// Extend free space has failed....
+		return EXTENDFREESPACEERROR;
+	}
+
+	for(int i = _lastFreePagePTR+1;i<=_lastFreePagePTR+1024;i++)
+	{
+		char * buffer = new char [_pageSize];
+
+		if(i!=_lastFreePagePTR+1024)
+		{
+			FreePage * newPage = new FreePage(i,i+1);
+			newPage->writeFreePageBuffer(buffer);
+			delete newPage;
+		}
+		else
+		{
+			FreePage * newPage = new FreePage(i,-1);
+			newPage->writeFreePageBuffer(buffer);
+			delete newPage;
+		}
+
+		short priority = 0;
+		bool retWriteDB;
+
+		retWriteDB = (*bu).writeDB(fdID,i,(PagePriority)(priority),buffer);
+
+		if(retWriteDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+
+			delete buffer;
+			return DATABASEWRITEDBERROR;
+		}
+		
+		delete buffer;
+	}
+	_lastFreePagePTR = _lastFreePagePTR+1024;
+	return _lastFreePagePTR;
 }
 
-int DB::getFreePage()
+int getFreePage(DB * curDB)
 {
-	int pageID = _freePagePTR;
-	char * buffer = new char [PAGESIZE];
+	BufferManager *bu = BufferManager::getBufferManager();
+	int pageID = curDB->_freePagePTR;
+	char * buffer = new char [curDB->_pageSize];
+	int _pageSize = curDB->_pageSize;
 	//buffer = readPage(pageID);// Chinmay code here for reading the page
+	short priority = 0;
+	bool retReadDB;
+
+	retReadDB = (*bu).readDB(fdID,pageID,(PagePriority)(priority),buffer);
+
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+
+		delete buffer;
+		return DATABASEREADDBERROR;
+	}
 	int nextFreePage;
 	memcpy(&nextFreePage,&buffer[NEXTPTR],sizeof(int));
 
-	_freePagePTR = nextFreePage;
+	curDB->_freePagePTR = nextFreePage;
 
 
-	if(extendFreeSpaceCheck() == 1)
-		extendFreeSpace();
+	if(curDB->extendFreeSpaceCheck() == 1)
+		curDB->extendFreeSpace();
 
 	delete buffer;
 	return pageID;
 }
 
-int DB::addFreePageList(int pageID)
+int addFreePageList(DB * curDB,int pageID)
 {
-	char * buffer = new char [PAGESIZE];
+	BufferManager *bu = BufferManager::getBufferManager();
+	char * buffer = new char [curDB->_pageSize];
+	int _pageSize = curDB->_pageSize;
 	//buffer = readPage(pageID);// Chinmay code here for reading the page
 
-	FreePage * newPage = new FreePage(pageID,_freePagePTR);
+	FreePage * newPage = new FreePage(pageID,curDB->_freePagePTR);
 
 	newPage->writeFreePageBuffer(buffer);
 
 	//writePageBuffer(pageID);// Chinmay code here for writing the page
-	_freePagePTR = pageID;
+	short priority = 0;
+	bool retWriteDB;
+
+	retWriteDB = (*bu).writeDB(fdID,pageID,(PagePriority)(priority),buffer);
+
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+
+		delete buffer;
+		return DATABASEWRITEDBERROR;
+	}
+	curDB->_freePagePTR = pageID;
 	delete buffer;
 	return 1;
 }
 
-int DB::createNewSysTablesEntry()
+int DB::createNewSysTablesEntry(SysTableEntry newSysTableEntry)
 {
+	BufferManager *bu = BufferManager::getBufferManager();
 
+	char *dataEntry = new char [SYSTABLEENTRYSIZE];
+
+	int result = newSysTableEntry.fillBuffer(dataEntry);
+
+	char * sysTabBuff = new char [_pageSize];
+
+	short priority = 3;
+	bool retReadDB;
+	bool retWriteDB;
+
+	bool inserted = 0;
+
+	int nextPTR = 1,curPTR = -1,insertedPage;
+
+	while(nextPTR != -1)
+	{
+		retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(priority),sysTabBuff);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete dataEntry;
+			delete sysTabBuff;
+			return DATABASEREADDBERROR;
+		}
+
+		SysTables * sysTables = new SysTables(sysTabBuff,_pageSize);
+		curPTR = nextPTR;
+		nextPTR = sysTables->getnextSysTablePage();
+
+		if(sysTables->checkEntryInsertion() == 1)
+		{
+			sysTables->createNewSysTableEntry(dataEntry,sysTabBuff);
+			inserted = 1;
+			insertedPage = curPTR;
+			delete sysTables;
+			break;
+		}
+
+		if(inserted == 0 && nextPTR == -1)
+		{
+			// We have to create a new SysTables page for inserting the data
+			nextPTR = createNewSysTablesPage();
+
+			// Set the next pointer
+			sysTables->setnextSysTablePage(nextPTR);
+			sysTables->writeSysTableBuffer(sysTabBuff);
+
+			retWriteDB = (*bu).writeDB(fdID,curPTR,(PagePriority)(priority),sysTabBuff);
+
+			if(retWriteDB == false)
+			{
+				// Unable to write the buffer
+				// Return error
+
+				delete sysTables;
+				delete dataEntry;
+				delete sysTabBuff;
+				return DATABASEWRITEDBERROR;
+			}
+
+			// Read the new SysTables page
+			retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(priority),sysTabBuff);
+			if(retReadDB == false)
+			{
+				// Unable to read the buffer
+				// Return error
+				delete dataEntry;
+				delete sysTabBuff;
+				delete sysTables;
+				return DATABASEREADDBERROR;
+			}
+
+			SysTables * newSysTables = new SysTables(sysTabBuff,_pageSize);
+			curPTR = nextPTR;
+
+			newSysTables->createNewSysTableEntry(dataEntry,sysTabBuff);
+			inserted = 1;
+			insertedPage = curPTR;
+
+			delete newSysTables;
+			delete sysTables;
+			break;
+		}
+	}
+
+	retWriteDB = (*bu).writeDB(fdID,insertedPage,(PagePriority)(priority),sysTabBuff);
+
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+
+		delete dataEntry;
+		delete sysTabBuff;
+		return DATABASEWRITEDBERROR;
+	}
+
+	delete dataEntry;
+	delete sysTabBuff;
+
+	return insertedPage;
 }
 
-int DB::deleteSysTablesEntry()
+int DB::deleteSysTablesEntry(string tableName,string dbName)
 {
+	BufferManager *bu = BufferManager::getBufferManager();
 
+	char * sysTabBuff = new char [_pageSize];
+
+	short priority = 3;
+	bool retReadDB;
+	bool retWriteDB;
+
+	int nextPTR = 1,curPTR = -1,retValue;
+	bool deleted = false;
+
+	while(nextPTR != -1)
+	{
+		retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(priority),sysTabBuff);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete sysTabBuff;
+			return DATABASEREADDBERROR;
+		}
+
+		SysTables * sysTables = new SysTables(sysTabBuff,_pageSize);
+		curPTR = nextPTR;
+		nextPTR = sysTables->getnextSysTablePage();
+
+		retValue = sysTables->deleteSysTableEntry(tableName,dbName,sysTabBuff);
+		if(retValue != -1)
+		{
+			// Entry found
+			deleted = true;
+			retWriteDB = (*bu).writeDB(fdID,curPTR,(PagePriority)(priority),sysTabBuff);
+
+			if(retWriteDB == false)
+			{
+				// Unable to write the buffer
+				// Return error
+
+				delete sysTables;
+				delete sysTabBuff;
+				return DATABASEWRITEDBERROR;
+			}
+			delete sysTables;
+			break;
+		}
+
+		delete sysTables;
+	}
+
+	delete sysTabBuff;
+	if(deleted == false)
+		return TABLENOTFOUNDERROR;
+	return 1;
 }
 
-int DB::createNewSysColumnsEntry()
+int DB::createNewSysColumnsEntry(SysColumnsEntry newSysColumnsEntry)
 {
+	BufferManager *bu = BufferManager::getBufferManager();
 
+	char *dataEntry = new char [SYSCOLUMNENTRYSIZE];
+	int result = newSysColumnsEntry.fillBuffer(dataEntry);
+
+	char * sysColBuff = new char [_pageSize];
+
+	short priority = 3;
+	bool retReadDB;
+	bool retWriteDB;
+
+	bool inserted = 0;
+
+	int nextPTR = 2,curPTR = -1,insertedPage;
+
+	while(nextPTR != -1)
+	{
+		retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(priority),sysColBuff);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete dataEntry;
+			delete sysColBuff;
+			return DATABASEREADDBERROR;
+		}
+
+		SysColumns * sysColumns = new SysColumns(sysColBuff,_pageSize);
+		curPTR = nextPTR;
+		nextPTR = sysColumns->getnextSysColumnsPage();
+
+		if(sysColumns->checkEntryInsertion() == 1)
+		{
+			sysColumns->createNewSysColumnEntry(dataEntry,sysColBuff);
+			inserted = 1;
+			insertedPage = curPTR;
+			delete sysColumns;
+			break;
+		}
+
+		if(inserted == 0 && nextPTR == -1)
+		{
+			// We have to create a new SysColumns page for inserting the data
+			nextPTR = createNewSysColumnsPage();
+
+			// Set the next pointer
+			sysColumns->setnextSysColumnsPage(nextPTR);
+			sysColumns->writeSysColumnsBuffer(sysColBuff);
+
+			retWriteDB = (*bu).writeDB(fdID,curPTR,(PagePriority)(priority),sysColBuff);
+
+			if(retWriteDB == false)
+			{
+				// Unable to write the buffer
+				// Return error
+
+				delete sysColumns;
+				delete dataEntry;
+				delete sysColBuff;
+				return DATABASEWRITEDBERROR;
+			}
+
+			// Read the new SysColumns page
+			retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(priority),sysColBuff);
+			if(retReadDB == false)
+			{
+				// Unable to read the buffer
+				// Return error
+				delete dataEntry;
+				delete sysColBuff;
+				delete sysColumns;
+				return DATABASEREADDBERROR;
+			}
+
+			SysColumns * newSysColumns = new SysColumns(sysColBuff,_pageSize);
+			curPTR = nextPTR;
+
+			newSysColumns->createNewSysColumnEntry(dataEntry,sysColBuff);
+			inserted = 1;
+			insertedPage = curPTR;
+
+			delete newSysColumns;
+			delete sysColumns;
+			break;
+		}
+	}
+
+	retWriteDB = (*bu).writeDB(fdID,insertedPage,(PagePriority)(priority),sysColBuff);
+
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+
+		delete dataEntry;
+		delete sysColBuff;
+		return DATABASEWRITEDBERROR;
+	}
+
+	delete dataEntry;
+	delete sysColBuff;
+
+	return insertedPage;
 }
 
-int DB::deleteSysColumnsEntry()
+int DB::deleteSysColumnsEntry(string _dbName,string _tableName,string _columnName,string _dataType)
 {
+	BufferManager *bu = BufferManager::getBufferManager();
 
+	char * sysColBuff = new char [_pageSize];
+
+	short priority = 3;
+	bool retReadDB;
+	bool retWriteDB;
+
+	int nextPTR = 2,curPTR = -1,retValue;
+	bool deleted = false;
+
+	while(nextPTR != -1)
+	{
+		retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(priority),sysColBuff);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete sysColBuff;
+			return DATABASEREADDBERROR;
+		}
+
+		SysColumns * sysColumns = new SysColumns(sysColBuff,_pageSize);
+		curPTR = nextPTR;
+		nextPTR = sysColumns->getnextSysColumnsPage();
+
+		retValue = sysColumns->deleteSysColumnEntry(_columnName,_tableName,_dbName,_dataType,sysColBuff);
+		if(retValue != -1)
+		{
+			// Entry found
+			deleted = true;
+			retWriteDB = (*bu).writeDB(fdID,curPTR,(PagePriority)(priority),sysColBuff);
+
+			if(retWriteDB == false)
+			{
+				// Unable to write the buffer
+				// Return error
+
+				delete sysColumns;
+				delete sysColBuff;
+				return DATABASEWRITEDBERROR;
+			}
+			delete sysColumns;
+			break;
+		}
+
+		delete sysColumns;
+	}
+
+	delete sysColBuff;
+	if(deleted == false)
+		return COLUMNNOTFOUNDERROR;
+	return 1;
 }
 
-int DB::createNewSysIndexEntry()
+int DB::createNewSysIndexEntry(SysIndexEntry newSysIndexEntry)
 {
+	BufferManager *bu = BufferManager::getBufferManager();
 
+	char *dataEntry = new char [SYSINDEXENTRYSIZE];
+	int result = newSysIndexEntry.fillBuffer(dataEntry);
+
+	char * sysIndexBuf = new char [_pageSize];
+
+	short priority = 3;
+	bool retReadDB;
+	bool retWriteDB;
+
+	bool inserted = 0;
+
+	int nextPTR = 3,curPTR = -1,insertedPage;
+
+	while(nextPTR != -1)
+	{
+		retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(priority),sysIndexBuf);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete dataEntry;
+			delete sysIndexBuf;
+			return DATABASEREADDBERROR;
+		}
+
+		SysIndex * sysIndex = new SysIndex(sysIndexBuf,_pageSize);
+		curPTR = nextPTR;
+		nextPTR = sysIndex->getNextSysIndexPage();
+
+		if(sysIndex->checkEntryInsertion() == 1)
+		{
+			sysIndex->createNewSysIndexEntry(dataEntry,sysIndexBuf);
+			inserted = 1;
+			insertedPage = curPTR;
+			delete sysIndex;
+			break;
+		}
+
+		if(inserted == 0 && nextPTR == -1)
+		{
+			// We have to create a new SysIndex page for inserting the data
+			nextPTR = createNewSysIndexPage();
+
+			// Set the next pointer
+			sysIndex->setNextSysIndexPage(nextPTR);
+			sysIndex->writeSysIndexBuffer(sysIndexBuf);
+
+			retWriteDB = (*bu).writeDB(fdID,curPTR,(PagePriority)(priority),sysIndexBuf);
+
+			if(retWriteDB == false)
+			{
+				// Unable to write the buffer
+				// Return error
+
+				delete sysIndex;
+				delete dataEntry;
+				delete sysIndexBuf;
+				return DATABASEWRITEDBERROR;
+			}
+
+			// Read the new SysIndex page
+			retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(priority),sysIndexBuf);
+			if(retReadDB == false)
+			{
+				// Unable to read the buffer
+				// Return error
+				delete dataEntry;
+				delete sysIndexBuf;
+				delete sysIndex;
+				return DATABASEREADDBERROR;
+			}
+
+			SysIndex * newSysIndex = new SysIndex(sysIndexBuf,_pageSize);
+			curPTR = nextPTR;
+
+			newSysIndex->createNewSysIndexEntry(dataEntry,sysIndexBuf);
+			inserted = 1;
+			insertedPage = curPTR;
+
+			delete newSysIndex;
+			delete sysIndex;
+			break;
+		}
+	}
+
+	retWriteDB = (*bu).writeDB(fdID,insertedPage,(PagePriority)(priority),sysIndexBuf);
+
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+
+		delete dataEntry;
+		delete sysIndexBuf;
+		return DATABASEWRITEDBERROR;
+	}
+
+	delete dataEntry;
+	delete sysIndexBuf;
+
+	return insertedPage;
 }
 
-int DB::deleteSysIndexEntry()
+int DB::deleteSysIndexEntry(string indexName,string tableName)
 {
+	BufferManager *bu = BufferManager::getBufferManager();
 
+	char * sysIndexBuf = new char [_pageSize];
+
+	short priority = 3;
+	bool retReadDB;
+	bool retWriteDB;
+
+	int nextPTR = 3,curPTR = -1,retValue;
+	bool deleted = false;
+
+	while(nextPTR != -1)
+	{
+		retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(priority),sysIndexBuf);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete sysIndexBuf;
+			return DATABASEREADDBERROR;
+		}
+
+		SysIndex * sysIndex = new SysIndex(sysIndexBuf,_pageSize);
+		curPTR = nextPTR;
+		nextPTR = sysIndex->getNextSysIndexPage();
+
+		retValue = sysIndex->deleteSysIndexEntry(indexName,tableName,sysIndexBuf);
+		if(retValue != -1)
+		{
+			// Entry found
+			deleted = true;
+			retWriteDB = (*bu).writeDB(fdID,curPTR,(PagePriority)(priority),sysIndexBuf);
+
+			if(retWriteDB == false)
+			{
+				// Unable to write the buffer
+				// Return error
+
+				delete sysIndex;
+				delete sysIndexBuf;
+				return DATABASEWRITEDBERROR;
+			}
+			delete sysIndex;
+			break;
+		}
+
+		delete sysIndex;
+	}
+
+	delete sysIndexBuf;
+	if(deleted == false)
+		return INDEXNOTFOUNDERROR;
+	return 1;
 }
 
 int DB::createNewSysTablesPage()
 {
 
+	int freePageID = getFreePage(this);
+
+	if(freePageID < 0)
+		return FREEPAGEERROR;
+
+	BufferManager *bu = BufferManager::getBufferManager();
+
+	SysTables * sysTables = new SysTables(freePageID,_pageSize);
+	char * tabBuff = new char [_pageSize];
+	sysTables->writeSysTableBuffer(tabBuff);
+
+	short priority = 3;
+	bool retWriteDB;
+	retWriteDB = (*bu).writeDB(fdID,freePageID,(PagePriority)(priority),tabBuff);
+
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+
+		delete sysTables;
+		delete tabBuff;
+		return DATABASEWRITEDBERROR;
+	}
+
+	delete sysTables;
+	delete tabBuff;
+
+	_noSysTablePages++;
+
+	return freePageID;
 }
 
 int DB::createNewSysColumnsPage()
 {
+	int freePageID = getFreePage(this);
 
+	if(freePageID < 0)
+		return FREEPAGEERROR;
+
+	BufferManager *bu = BufferManager::getBufferManager();
+
+	SysColumns * sysColumns = new SysColumns(freePageID,_pageSize);
+	char * colBuff = new char [_pageSize];
+	sysColumns->writeSysColumnsBuffer(colBuff);
+
+	short priority = 3;
+	bool retWriteDB;
+	retWriteDB = (*bu).writeDB(fdID,freePageID,(PagePriority)(priority),colBuff);
+
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+
+		delete sysColumns;
+		delete colBuff;
+		return DATABASEWRITEDBERROR;
+	}
+
+	delete sysColumns;
+	delete colBuff;
+
+	_noSysColumnPages++;
+
+	return freePageID;
 }
 
 int DB::createNewSysIndexPage()
 {
+	int freePageID = getFreePage(this);
 
+	if(freePageID < 0)
+		return FREEPAGEERROR;
+
+	BufferManager *bu = BufferManager::getBufferManager();
+
+	char * indexBuff = new char [_pageSize];
+	SysIndex * sysIndex = new SysIndex(freePageID,_pageSize);
+	sysIndex->writeSysIndexBuffer(indexBuff);
+
+	short priority = 3;
+	bool retWriteDB;
+	retWriteDB = (*bu).writeDB(fdID,freePageID,(PagePriority)(priority),indexBuff);
+
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+
+		delete sysIndex;
+		delete indexBuff;
+		return DATABASEWRITEDBERROR;
+	}
+
+	delete sysIndex;
+	delete indexBuff;
+
+	_noSysIndexPages++;
+
+	return freePageID;
+}
+
+int DB::createNewDirectoryPage()
+{
+	int freePageID = getFreePage(this);
+
+	if(freePageID < 0)
+		return FREEPAGEERROR;
+
+	BufferManager *bu = BufferManager::getBufferManager();
+
+	char * newDirPageBuffer = new char [_pageSize];
+
+	//buffer = readPage(freePageID);// Chinmay code here for reading the page
+	/*short priority = 0;
+	bool retReadDB;
+	retReadDB = (*bu).readDB(fdID,0,(PagePriority)(priority),newDirPageBuffer);
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete newDirPageBuffer;
+		//delete dbHeader;
+		return DATABASEREADDBERROR;
+	}*/
+
+	DirectoryPage * newDirPage = new DirectoryPage(_pageSize,freePageID);
+	newDirPage->fillBuffer(newDirPageBuffer);
+
+	// Write the page to database
+	// pageWrite(buffer,pageID);
+	short priority = 2;
+	bool retWriteDB;
+	retWriteDB = (*bu).writeDB(fdID,freePageID,(PagePriority)(priority),newDirPageBuffer);
+
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+
+		delete newDirPage;
+		delete newDirPageBuffer;
+		return DATABASEWRITEDBERROR;
+	}
+
+	delete newDirPage;
+	delete newDirPageBuffer;
+
+	return freePageID;
+}
+
+int DB::createNewDataPage()
+{
+	int freePageID = getFreePage(this);
+
+	if(freePageID < 0)
+		return FREEPAGEERROR;
+
+	BufferManager *bu = BufferManager::getBufferManager();
+
+	DataPage dataPage(_pageSize,freePageID);
+	char * buffer = new char [_pageSize];
+	dataPage.fillBuffer(buffer);
+
+	short priority = 1;
+	bool retWriteDB;
+	retWriteDB = (*bu).writeDB(fdID,freePageID,(PagePriority)(priority),buffer);
+
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+
+		delete buffer;
+		return DATABASEWRITEDBERROR;
+	}
+
+	delete buffer;
+
+	return freePageID;
 }
 
 int DB::deleteSysTablesPage(int pageID)
@@ -244,10 +960,20 @@ int DB::deleteSysIndexPage(int pageID)
 
 }
 
+int DB::deleteDirectoryPage(int pageID)
+{
+
+}
+
+int DB::deleteDataPage(int pageID)
+{
+
+}
+
 
 // DB Queries
 
-int DB::createDB(int size,int pageSize,string dbName)
+int DB::createDB(query q)
 {
 	// Add code to check whether database name already exists.......
 	// Steps: In the database root get the list of the names of the files
@@ -256,28 +982,129 @@ int DB::createDB(int size,int pageSize,string dbName)
 	// If exists return error DBNAMEUNIQUEERROR -2001
 	// Else continue
 	// Create file of size*pageSize bytes... Call Chinmay's code here
-	DBHeader * dbHeader = new DBHeader(size,pageSize,dbName);
+
+	BufferManager *bu = BufferManager::getBufferManager();
+	int size = 100*1024*1024;
+
+	int pageSize = (*bu).getPageSize();
+
+	vector<string> files = vector<string>();
+	string filePath = DBROOT;
+
+	bool listDBres = (*bu).listDBs(filePath,files);
+	if(listDBres == false)
+	{
+		// Unable to open the data directory
+		return UNABLETOOPENFOLDERERROR;
+	}
+
+	for (unsigned int listCount = 0;listCount < files.size();listCount++)
+	{
+	        string curFileName = files[listCount].substr(0,files[listCount].find_last_of("_"));
+		if(curFileName == q->dbname)
+		{
+			// DataBase Name already exists....
+			// Cannot create new database....
+			return DBNAMEUNIQUEERROR;
+		}
+	}
+
+	DBHeader * dbHeader = new DBHeader(size,pageSize,q->dbname);
 	char * dbBuff = new char [pageSize];
 	dbHeader->writeDBHeader(dbBuff);
 	string fileName = DBROOT;
-	fileName = fileName+dbName;
+	fileName = fileName+(q->dbname);
+	fileName = fileName+"_";
+	//fileName = fileName+pageSize;
+	string pageSz;
+	int tempPageSize = pageSize;
+	while(tempPageSize!=0)
+	{
+		int d = tempPageSize%10;
+		char digit = '0'+d;
+	    	pageSz = digit+pageSz;
+		tempPageSize = tempPageSize/10;
+	}
+	fileName = fileName+pageSz;
 	fileName = fileName+".dat";
-	fileCreate(fileName);
-	pageWrite(fileName,1,dbBuff,pageSize);
+	int resCreateDB = (*bu).createDB(filePath,fileName,size);
+	if(resCreateDB < 0)
+	{
+		// Unable to create the Database file
+		return DATABASEFILECREATEERROR;
+	}
+	//fileCreate(fileName);
+	fdID = (*bu).openDB(filePath,fileName);
+	if(fdID < 0)
+	{
+		// Unable to open the Database file
+		return DATABASEFILEOPENERRROR;
+	}
+	//pageWrite(fileName,1,dbBuff,pageSize);
+	short priority = 3;
+	bool retWriteDB;
+	retWriteDB = (*bu).writeDB(fdID,0,(PagePriority)(priority),dbBuff);
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		delete dbHeader;
+		return DATABASEWRITEDBERROR;
+	}
 	SysTables * sysTables = new SysTables(2,pageSize);
 	char * tabBuff = new char [pageSize];
 	//sysTables->setPageSize(pageSize);
 	sysTables->writeSysTableBuffer(tabBuff);
-	pageWrite(fileName,2,tabBuff,pageSize);
+	//pageWrite(fileName,2,tabBuff,pageSize);
+	retWriteDB = (*bu).writeDB(fdID,1,(PagePriority)(priority),tabBuff);
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		delete tabBuff;
+		delete sysTables;
+		delete dbHeader;
+		return DATABASEWRITEDBERROR;
+	}
 	SysColumns * sysColumns = new SysColumns(3,pageSize);
 	char * colBuff = new char [pageSize];
 	sysColumns->setPageSize(pageSize);
 	sysColumns->writeSysColumnsBuffer(colBuff);
-	pageWrite(fileName,3,colBuff,pageSize);
+	//pageWrite(fileName,3,colBuff,pageSize);
+	retWriteDB = (*bu).writeDB(fdID,2,(PagePriority)(priority),colBuff);
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		delete tabBuff;
+		delete colBuff;
+		delete sysColumns;
+		delete sysTables;
+		delete dbHeader;
+		return DATABASEWRITEDBERROR;
+	}
 	char * indexBuff = new char [pageSize];
 	SysIndex * sysIndex = new SysIndex(4,pageSize);
 	sysIndex->writeSysIndexBuffer(indexBuff);
-	pageWrite(fileName,4,indexBuff,pageSize);
+	//pageWrite(fileName,4,indexBuff,pageSize);
+	retWriteDB = (*bu).writeDB(fdID,3,(PagePriority)(priority),indexBuff);
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		delete tabBuff;
+		delete colBuff;
+		delete indexBuff;
+		delete sysIndex;
+		delete sysColumns;
+		delete sysTables;
+		delete dbHeader;
+		return DATABASEWRITEDBERROR;
+	}
 	delete dbBuff;
 	delete tabBuff;
 	delete colBuff;
@@ -287,14 +1114,24 @@ int DB::createDB(int size,int pageSize,string dbName)
 	delete sysTables;
 	delete dbHeader;
 	int totPages = dbHeader->getTotalPages();
-	for(int i = 5;i<=totPages;i++)
+	priority = 0;
+	for(int i = 4;i<totPages;i++)
 	{
 		if(i == totPages)
 		{
 			FreePage * freePage = new FreePage(i,-1,pageSize);
 			char *idxbuffer = new char [pageSize];
 			freePage->writeFreePageBuffer(idxbuffer);
-			pageWrite(fileName,i,idxbuffer,pageSize);
+			//pageWrite(fileName,i,idxbuffer,pageSize);
+			retWriteDB = (*bu).writeDB(fdID,i,(PagePriority)(priority),idxbuffer);
+			if(retWriteDB == false)
+			{
+				// Unable to write the buffer
+				// Return error
+				delete idxbuffer;
+				delete freePage;
+				return DATABASEWRITEDBERROR;
+			}
 			delete idxbuffer;
 			delete freePage;
 		}
@@ -303,7 +1140,16 @@ int DB::createDB(int size,int pageSize,string dbName)
 			FreePage * freePage = new FreePage(i,i+1,pageSize);
 			char *idxbuffer = new char [pageSize];
 			freePage->writeFreePageBuffer(idxbuffer);
-			pageWrite(fileName,i,idxbuffer,pageSize);
+			//pageWrite(fileName,i,idxbuffer,pageSize);
+			retWriteDB = (*bu).writeDB(fdID,i,(PagePriority)(priority),idxbuffer);
+			if(retWriteDB == false)
+			{
+				// Unable to write the buffer
+				// Return error
+				delete idxbuffer;
+				delete freePage;
+				return DATABASEWRITEDBERROR;
+			}
 			delete idxbuffer;
 			delete freePage;
 		}
@@ -317,32 +1163,504 @@ int DB::createDB(int size,int pageSize,string dbName)
 	return 1;
 }
 
-int DB::useDB(string dbName)
+int DB::useDB(query q)
 {
 	// For use database command
+	// If fdID != -1, then commit the cache contents to the hard disk.....
+	// Search whether the database exists, if it does not flag an error
+	// If it exists, then perform the following steps
 	// Read the database file..... (first 100 pages maybe)
 	// Read the database header....
+	// Check if page size matches with the DB cache page size, if it does not, flag an error, that page sizes do not match and reset the page size from the cache panel
 	// Read all the SysTables files.....
 	// Read all the SysColumns files.....
 	// Read all the SysIndex files......
+
+	BufferManager *bu = BufferManager::getBufferManager();
+
+	int pageSize = (*bu).getPageSize();
+
+	if(fdID != -1)
+	{
+		// Commit the cache contents to the disk to read the new data base....
+		bool retCommitCache;
+		retCommitCache = (*bu).commitCache();
+		if(retCommitCache == false)
+		{
+			// Commiting to cache failed
+			return COMMITCACHEERROR;
+		}
+	}
+	
+	vector<string> files = vector<string>();
+	string filePath = DBROOT;
+
+	bool listDBres = (*bu).listDBs(filePath,files);
+	if(listDBres == false)
+	{
+		// Unable to open the data directory
+		return UNABLETOOPENFOLDERERROR;
+	}
+	bool dbFound = false;
+
+	for (unsigned int listCount = 0;listCount < files.size();listCount++)
+	{
+		int lastPos = files[listCount].find_last_of("_");
+		string curFileName = files[listCount].substr(0,lastPos);
+		if(curFileName == q->dbname)
+		{
+			int lastDotPos = files[listCount].find_last_of(".");
+			string pgSz = files[listCount].substr(lastPos+1,lastDotPos-lastPos-1);
+			int dbPageSize = 0;
+			for(int i=0;i<pgSz.length();i++)
+			{
+				char ch = pgSz[i];
+				int digit = ch - '0';
+				dbPageSize = dbPageSize*10+digit;
+			}
+			if(dbPageSize != pageSize)
+			{
+				// Page Sizes do not match.... Return error...
+				// Change the cache page size....
+				return CACHEPAGESIZEERROR;
+			}
+			dbFound = true;
+			break;
+		}
+	}
+
+	if(dbFound == false)
+	{
+		// Database not found error
+		return DATABASENOTFOUNDERROR;
+	}
+
+	// Open the database.....
+	string fileName = q->dbname;
+	string pageSz;
+	int tempPageSize = pageSize;
+	while(tempPageSize!=0)
+	{
+		int d = tempPageSize%10;
+		char digit = '0'+d;
+	    	pageSz = digit+pageSz;
+		tempPageSize = tempPageSize/10;
+	}
+	fileName = fileName+pageSz;
+	fdID = (*bu).openDB(filePath,fileName);
+	if(fdID < 0)
+	{
+		// Unable to open the Database file
+		return DATABASEFILEOPENERRROR;
+	}
+
+	// Read the DatabaseHeader,SysTables,SysColumns,SysIndex and Directory Pages
+
+	// Reading the DBHeader page
+	char * dbBuff = new char [pageSize];
+	short priority = 3,dirPagePriority = 1;
+	bool retReadDB;
+	retReadDB = (*bu).readDB(fdID,0,(PagePriority)(priority),dbBuff);
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		return DATABASEREADDBERROR;
+	}
+	delete dbBuff;
+
+	// Reading all the SysTable pages
+	char * sysTabBuff = new char [pageSize];
+	int nextPTR = 1,curPTR = -1;
+	while(nextPTR != -1)
+	{
+		retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(priority),sysTabBuff);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete sysTabBuff;
+			return DATABASEREADDBERROR;
+		}
+		SysTables * curSysTables = new SysTables(sysTabBuff,pageSize);
+		int noOfEntries = curSysTables->getNoOfEntries();
+
+		if(noOfEntries != 0)
+		{
+			char deleted;
+			int directoryPagePointer;
+			for(int i=0;i<noOfEntries;i++)
+			{
+				memcpy(&deleted,&sysTabBuff[FIRSTSYSTABSLOTPTR-(i*SYSTABSLOTSIZE)],SYSTABSLOTSIZE);
+				if(deleted == '0')
+					continue;
+				char * newEntryBuff = new char [SYSTABLEENTRYSIZE];
+				memcpy(newEntryBuff,&sysTabBuff[0+(i*SYSTABLEENTRYSIZE)],SYSTABLEENTRYSIZE);
+				memcpy(&directoryPagePointer,&newEntryBuff[SYSTABDIRPAGEPTR],sizeof(int));
+				while(directoryPagePointer != -1)
+				{
+					char * dirPageBuff = new char [pageSize];
+					retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(dirPagePriority),dirPageBuff);
+					if(retReadDB == false)
+					{
+						// Unable to write the buffer
+						// Return error
+						delete dirPageBuff;
+						delete newEntryBuff;
+						delete curSysTables;
+						delete sysTabBuff;
+						return DATABASEREADDBERROR;
+					}
+					memcpy(&directoryPagePointer,&dirPageBuff[NEXTPTR],sizeof(int));
+					delete dirPageBuff;
+				}
+				delete newEntryBuff;
+			}
+		}
+
+		delete curSysTables;
+	}
+
+	delete sysTabBuff;
+
+	// Read all the SysColumn pages
+	char * sysColBuff = new char [pageSize];
+	nextPTR = 2,curPTR = -1;
+
+	while(nextPTR != -1)
+	{
+		retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(priority),sysColBuff);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete sysColBuff;
+			return DATABASEREADDBERROR;
+		}
+	}
+
+	delete sysColBuff;
+
+	// Read all the SysIndex Pages
+	char * sysIndexBuff = new char [pageSize];
+	nextPTR = 3,curPTR = -1;
+
+	while(nextPTR != -1)
+	{
+		retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(priority),sysIndexBuff);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete sysIndexBuff;
+			return DATABASEREADDBERROR;
+		}
+
+		// Decide whether to read in the index or not
+	}
+
+	delete sysIndexBuff;
+
+	return 1;
 }
 
-int DB::dropDB(string dbName)
+int DB::dropDB(query q)
 {
 	// For drop database command
 	// Delete the database file.....
+	BufferManager *bu = BufferManager::getBufferManager();
+
+	int pageSize = (*bu).getPageSize();
+	
+	vector<string> files = vector<string>();
+	string filePath = DBROOT;
+
+	bool listDBres = (*bu).listDBs(filePath,files);
+	if(listDBres == false)
+	{
+		// Unable to open the data directory
+		return UNABLETOOPENFOLDERERROR;
+	}
+	bool dbFound = false;
+
+	for (unsigned int listCount = 0;listCount < files.size();listCount++)
+	{
+		int lastPos = files[listCount].find_last_of("_");
+		string curFileName = files[listCount].substr(0,lastPos);
+		if(curFileName == q->dbname)
+		{
+			dbFound = true;
+			break;
+		}
+	}
+
+	if(dbFound == false)
+	{
+		// Database not found error
+		return DROPDBDATABASENOTFOUNDERROR;
+	}
+
+	// Call Chinmay's function to delete the database file.
+	fdID = -1;
+	return 1;
 }
 
-int DB::createTable(/*Query Parameter Structure*/)
+int DB::createTable(/*Query Parameter Structure*/query q)
 {
 	// For create table command
-	// Check if table name already exists, if so return TABLENAMEUNIQUEERROR
 	// Create a SysTable Entry for the table
 	// Create SysColumns entry for each of the columns of the table, if columnCount is not 0
 	// Create a Directory and Data Page for the table, updating the corresponding pages
+	int nextSysTabPointer = _sysTablesPTR, nextSysColumnsPointer = _sysColumnsPTR;
+	int curSysTabPointer = -1,curSysColsPointer = -1,i,j;
+	string tableName = q->table; // get the first table name
+
+	BufferManager *bu = BufferManager::getBufferManager();
+	char * dbheaderBuff = new char [_pageSize];
+	short priority = 3;
+	bool retReadDB;
+	retReadDB = (*bu).readDB(fdID,0,(PagePriority)(priority),dbheaderBuff);
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbheaderBuff;
+		return DATABASEREADDBERROR;
+	}
+	DBHeader * dbHeader = new DBHeader(dbheaderBuff,_pageSize);
+	string dbName = dbHeader->getDatabaseName();
+	delete dbHeader;
+	delete dbheaderBuff;
+
+	char rowFormat = 'F',encodingScheme = 'A',tableType='T';
+	unsigned short dataLength,recLength;
+	int dirPagePointer,tableRows = 0,noOfPages = 0;
+	short charLength;
+	string remarks;
+	unsigned short colCount=(q->cntColumns),curDataLength,curRecordLength,keyColumns=0;
+	bool createSysIndexEntry;
+	int colIndex = -1,avgRowLength = 0;
+	// Check if table name already exists, if so return TABLENAMEUNIQUEERROR
+	while(nextSysTabPointer != -1)
+	{
+		char * curSysTabBuffer = new char [_pageSize];
+		// Read the file to the buffer
+		SysTables * curSysTable = new SysTables(curSysTabBuffer,_pageSize);
+		curSysTabPointer = nextSysTabPointer;
+		nextSysTabPointer = curSysTable->getnextSysTablePage();
+		if(curSysTable->searchSysTableEntry(tableName,dbName,curSysTabBuffer) != -1)
+		{
+			delete curSysTable;
+			delete curSysTabBuffer;
+			return TABLENAMEUNIQUEERROR;
+			// TABLENAMEUNIQUEERROR = -2002
+		}
+		delete curSysTable;
+		delete curSysTabBuffer;
+	}
+	for(i=0;i<colCount;i++)
+	{
+		// Check if column names specified are unique, if they are not, return COLUMNNAMEUNIQUEERROR
+		for(j=i+1;j<colCount;j++)
+		{
+			if(strcmp((q->columns[i]).name,(q->columns[j]).name)==0 && strcmp((q->columns[i]).type,(q->columns[j]).type)==0)
+				return COLUMNNAMEUNIQUEERROR;
+		}
+		curDataLength = 0,curRecordLength=0;
+		if(strcmp((q->columns[i]).type,"VARCHAR$")==0)
+			rowFormat = 'D';
+		if((q->columns[i]).isPrimary == 1)
+		{
+			createSysIndexEntry = true;
+			colIndex = i;
+			keyColumns=1;
+		}
+		if(strcmp((q->columns[i]).type,"VARCHAR$")==0 || strcmp((q->columns[i]).type,"CHAR$$$$")==0)
+		{
+			charLength = (q->columns[i]).sizeofField1; // length of the character or varchar
+			short dataTypeID = retDataTypeID((q->columns[i]).type);
+			curDataLength = retDataTypeSize(dataTypeID,charLength);
+			if(strcmp((q->columns[i]).type,"VARCHAR$")==0)
+				curRecordLength = curDataLength + sizeof(short);
+			else
+				curRecordLength = curDataLength;
+		}
+		else
+		{
+			short dataTypeID = retDataTypeID((q->columns[i]).type);
+			curDataLength = retDataTypeSize(dataTypeID,1);
+			curRecordLength = curDataLength;
+		}
+		dataLength += curDataLength,recLength += curRecordLength;
+	}
+	dirPagePointer = createNewDirectoryPage();
+	if(dirPagePointer < 0)
+	{
+		return DIRPAGECREATIONERROR;
+	}
+	// Create a SysTable Entry for the table
+	// Create a new SysTableEntry object.....
+	SysTableEntry newSysTableEntry;
+	newSysTableEntry.setTableName(tableName);
+	newSysTableEntry.setDBName(dbName);
+	newSysTableEntry.setTableType(tableType);
+	newSysTableEntry.setColCount(colCount);
+	newSysTableEntry.setRowFormat(rowFormat);
+	newSysTableEntry.setTableRows(tableRows);
+	newSysTableEntry.setNoPages(noOfPages);
+	newSysTableEntry.setRemarks(remarks);
+	newSysTableEntry.setKeyColumns(keyColumns);
+	newSysTableEntry.setDataLength(dataLength);
+	newSysTableEntry.setRecLength(recLength);
+	newSysTableEntry.setEncodingScheme(encodingScheme);
+	newSysTableEntry.setAvgRowLength(avgRowLength);
+	newSysTableEntry.setDirectoryPagePointer(dirPagePointer);
+
+	int sysTableEntryCreateResult = createNewSysTablesEntry(newSysTableEntry);
+	// int sysTableEntryCreateResult = createNewSysTablesEntry(tableName,dbName,'T',colCount,rowFormat,0,0,NULL,keyColumns,dataLength,recLength,'A',0,dirPagePointer);
+//(string tableName,string dbName,char tableType,unsigned short colCount,char rowFormat,int tableRows,int noOfPages,string remarks,unsigned short keyColumns,unsigned short dataLength,unsigned short recordLength,char encodingScheme,int avgRowLength,int directoryPagePointer)
+
+	if(sysTableEntryCreateResult < 0)
+	{
+		// Return error
+		return SYSTABLEENTRYCREATEERROR;
+	}
+
+	for(i=0;i<colCount;i++)
+	{
+		SysColumnsEntry newSysColumnEntry;
+		short dataType = retDataTypeID((q->columns[i]).type);
+		string col_default;
+		int curRecordLength=0,curDataLength = 0;
+		// get the default value for the column, if default is not set, get the default values from DataTypes.cpp file
+		if(strcmp((q->columns[i]).type,"VARCHAR$")==0 || strcmp((q->columns[i]).type,"CHAR$$$$")==0)
+		{
+			col_default = getDefaultValue(dataType,(q->columns[i]).sizeofField1);
+		}
+		else
+		{
+			col_default = getDefaultValue(dataType,1);
+		}
+
+		// Getting the Record length
+		if(strcmp((q->columns[i]).type,"VARCHAR$")==0 || strcmp((q->columns[i]).type,"CHAR$$$$")==0)
+		{
+			charLength = (q->columns[i]).sizeofField1; // length of the character or varchar
+			short dataTypeID = retDataTypeID((q->columns[i]).type);
+			curDataLength = retDataTypeSize(dataTypeID,charLength);
+			if(strcmp((q->columns[i]).type,"VARCHAR$")==0)
+				curRecordLength = curDataLength + sizeof(short);
+			else
+				curRecordLength = curDataLength;
+		}
+		else
+		{
+			short dataTypeID = retDataTypeID((q->columns[i]).type);
+			curDataLength = retDataTypeSize(dataTypeID,1);
+			curRecordLength = curDataLength;
+		}
+
+		char autoGenerated = ' ';
+		bool defaultFlag = false;
+		if((q->columns[i]).isAutoIncrement == 1)
+			autoGenerated = 'A';
+		else if(/*Check for default set*/defaultFlag == true)
+		{
+			// Get the default value as well
+		}
+		newSysColumnEntry.setTableName(tableName);
+		newSysColumnEntry.setDBName(dbName);
+		newSysColumnEntry.setColumnName((q->columns[i]).name);
+		newSysColumnEntry.setColumnDefault(col_default);
+		newSysColumnEntry.setDataType((q->columns[i]).type);
+		newSysColumnEntry.setRemarks(NULL);
+		newSysColumnEntry.setIsNullable('N');
+		newSysColumnEntry.setUpdatable('Y');
+		newSysColumnEntry.setForeignKey('N');
+		newSysColumnEntry.setGeneratedAttribute(autoGenerated);
+		newSysColumnEntry.setHidden('N');
+		if(strcmp((q->columns[i]).type,"DOUBLE$$")==0)
+			newSysColumnEntry.setScale(9);
+		else if(strcmp((q->columns[i]).type,"FLOAT$$$")==0)
+			newSysColumnEntry.setScale(5);
+		else
+			newSysColumnEntry.setScale(0);
+		if((q->columns[i]).isPrimary == 1)
+			newSysColumnEntry.setKeyPos(i);
+		else
+			newSysColumnEntry.setKeyPos(0);
+		newSysColumnEntry.setOrdinalPosition(i);
+		newSysColumnEntry.setLength(curRecordLength);
+
+		int sysColumnEntryCreateResult = createNewSysColumnsEntry(newSysColumnEntry);
+
+		//int sysColumnEntryCreateResult = createNewSysColumnsEntry(dbName,tableName,colName,i+1,col_default,isNullable,dataType,length,scale,isUpdatable,remarks,keyPos,foreignKey,generatedAttribute,isHidden);
+//(string _dbName;string _tableName;string _columnName;int _ordinalPosition;string _columnDefault;char _isNullable;string _dataType;int _length; short _scale;char _updatable;string _remarks;short _keyPos;char _foreignKey;char _generatedAttribute;char _hidden;)
+
+		if(sysColumnEntryCreateResult < 0)
+		{
+			// Return error
+			return SYSCOLUMNENTRYCREATEERROR;
+		}
+	}
+
+	if(colIndex != -1)
+	{
+		// Primary key exists Entry in SysIndex should be created
+		string indexName = (q->columns[colIndex]).name;
+		string indexType = (q->columns[colIndex]).type;
+		int charLength = (q->columns[colIndex]).sizeofField1;
+		short curDataLength = 0,curRecordLength = 0;
+
+		// Getting the Record length
+		if(strcmp((q->columns[colIndex]).type,"VARCHAR$")==0 || strcmp((q->columns[colIndex]).type,"CHAR$$$$")==0)
+		{
+			short dataTypeID = retDataTypeID((q->columns[colIndex]).type);
+			curDataLength = retDataTypeSize(dataTypeID,charLength);
+			if(strcmp((q->columns[colIndex]).type,"VARCHAR$")==0)
+				curRecordLength = curDataLength + sizeof(short);
+			else
+				curRecordLength = curDataLength;
+		}
+		else
+		{
+			short dataTypeID = retDataTypeID((q->columns[i]).type);
+			curDataLength = retDataTypeSize(dataTypeID,1);
+			curRecordLength = curDataLength;
+		}
+
+		// Call the Index Query code here.......
+		int rootPageID = 6;
+
+		SysIndexEntry newSysIndexEntry;
+		newSysIndexEntry.setIndexName(indexName);
+		newSysIndexEntry.setDBName(dbName);
+		newSysIndexEntry.setTableName(tableName);
+		newSysIndexEntry.setUniqueRule('P');
+		newSysIndexEntry.setColCount(1);
+		newSysIndexEntry.setFanOutNo(3);
+		newSysIndexEntry.setIndexPageID(rootPageID);
+		newSysIndexEntry.setPageSize(_pageSize);
+		newSysIndexEntry.setEraseRule('N');
+		newSysIndexEntry.setCloseRule('N');
+		newSysIndexEntry.setRemarks("None");
+		newSysIndexEntry.setAvgKeyLength(curRecordLength);
+
+		int sysIndexEntryCreateResult = createNewSysIndexEntry(newSysIndexEntry);
+
+		if(sysIndexEntryCreateResult < 0)
+		{
+			// Return error
+			return SYSINDEXENTRYCREATEERROR;
+		}
+	}
+
+	// Successful
+	return 1;
 }
 
-int DB::dropTable()
+int DB::dropTable(query q)
 {
 	// For drop table command
 	// Delete all the data pages
@@ -352,7 +1670,7 @@ int DB::dropTable()
 	// Delete the SysTable entry for the table
 }
 
-int DB::createIndex()
+int DB::createIndex(query q)
 {
 	// For create index command
 	// Check if index name already exists... If so return error....
@@ -364,14 +1682,14 @@ int DB::createIndex()
 	// Pass Data and RID(PageNo,SlotID pair)
 }
 
-int DB::dropIndex()
+int DB::dropIndex(query q)
 {
 	// For drop index command
 	// Recover all the pages related to the index
 	// Delete the sysIndex entry
 }
 
-int DB::insertEntry()
+int DB::insertEntry(query q)
 {
 	// For insert command
 	// Index check required
@@ -382,14 +1700,14 @@ int DB::insertEntry()
 	// If SysTables Entry exists, and SysColumns Entries are 0 for the table, then return error COLUMNSNOTSPECIFIEDERROR
 }
 
-int DB::deleteEntry()
+int DB::deleteEntry(query q)
 {
 	// For delete command
 	// Index check required
 	// On delete entry, update the total free space for the data page entry in the Directory page. This is a must!!!!
 }
 
-int DB::updateEntry()
+int DB::updateEntry(query q)
 {
 	// For update command
 	// Index check required
@@ -400,13 +1718,13 @@ int DB::updateEntry()
 	// Else, the field is fixed length, so, just call the modify data page data directly...
 }
 
-int DB::alterTable()
+int DB::alterTable(query q)
 {
 	// For alter table command
 	// Index check required
 }
 
-int DB::selectEntry()
+int DB::selectEntry(query q)
 {
 	// For select command
 	// Index check required
@@ -419,7 +1737,7 @@ int DB::selectEntry()
 	// Be careful about the logic for this
 }
 
-int DB::showTables()
+int DB::showTables(query q)
 {
 	// For show tables command
 }
