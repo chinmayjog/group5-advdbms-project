@@ -7,6 +7,7 @@ BufferManager::BufferManager(){
 		mdt[i].id = -1; 
 		mdt[i].isopen = false;
 		mdt[i].dbName = "";
+		mdt[i].dbPath = "";
 	}
 	bufferPool = NULL;
 	sizeofheader = sizeof(MemBuffer) - sizeof(char[1]);
@@ -213,14 +214,14 @@ int BufferManager::initializeCache(int numberOfPages){
 	return false;
 }
 
-int BufferManager::createDB(string filename, int sizeinBytes){
+int BufferManager::createDB(string filepath, string filename, int sizeinBytes){
 	fstream dbFile;
-	dbFile.open(filename.c_str(), ios::in | ios::binary);
+	dbFile.open((filepath+filename).c_str(), ios::in | ios::binary);
 	if(dbFile){
 		dbFile.close();
 		return -1;
 	}
-	dbFile.open(filename.c_str(), ios::out | ios::binary);
+	dbFile.open((filepath+filename).c_str(), ios::out | ios::binary);
 	if(!dbFile)
 		return -2;
 	dbFile.seekp(sizeinBytes-1);
@@ -230,13 +231,14 @@ int BufferManager::createDB(string filename, int sizeinBytes){
 	return 1;
 }
 
-int BufferManager::openDB(string filename){
+int BufferManager::openDB(string filepath, string filename){
 	int mdtptr;
 	if((mdtptr = isFileExists(filename)) == -1){
 		if((mdtptr = getEmptyMDT())!= -1){
 			mdt[mdtptr].id = mdtptr;
 			mdt[mdtptr].dbName = filename;
-			mdt[mdtptr].fd.open(filename.c_str(), ios::in | ios::out | ios::binary);
+			mdt[mdtptr].dbPath = filepath;
+			mdt[mdtptr].fd.open((filepath+filename).c_str(), ios::in | ios::out | ios::binary);
 			if(!mdt[mdtptr].fd){
 				return -2;
 			}
@@ -253,7 +255,7 @@ int BufferManager::openDB(string filename){
 		}
 		else
 		{
-			mdt[mdtptr].fd.open(filename.c_str(), ios::in | ios::out | ios::binary);
+			mdt[mdtptr].fd.open((filepath+filename).c_str(), ios::in | ios::out | ios::binary);
 			if(!mdt[mdtptr].fd){
 				return -2;
 			}
@@ -323,14 +325,14 @@ bool BufferManager::writeDB(int fdID, int pgNo, PagePriority p, char* src){
 int BufferManager::expandDB(int mdtID, int size){
 	int dbStatus = closeDB(mdtID);
 	if( dbStatus == 1 || dbStatus == -2){
-		mdtID=openDB(mdt[mdtID].dbName);
+		mdtID=openDB(mdt[mdtID].dbPath, mdt[mdtID].dbName);
 		if(mdt[mdtID].isopen){
 			mdt[mdtID].fd.seekp(1, ios::end);
 			for(int i=0; i<(size-1); i++){
 				mdt[mdtID].fd.write("", 1);
 			}
 			closeDB(mdtID);
-			mdtID = openDB(mdt[mdtID].dbName);
+			mdtID = openDB(mdt[mdtID].dbPath, mdt[mdtID].dbName);
 		}
 		return mdtID;
 	}
@@ -339,6 +341,8 @@ int BufferManager::expandDB(int mdtID, int size){
 }
 
 int BufferManager::closeDB(int mdtID){
+	if(mdtID > max_connection)
+		return -6;
 	if(mdt[mdtID].dbName == "")
 			return -5;
 	if(!mdt[mdtID].fd){
@@ -359,10 +363,10 @@ int BufferManager::closeDB(int mdtID){
 	return -1;
 }
 
-bool BufferManager::listDBs(vector<string> &files){
+bool BufferManager::listDBs(string filepath, vector<string> &files){
 	DIR *dp;
     struct dirent *dirp;
-    if((dp  = opendir("data")) == NULL) {
+    if((dp  = opendir(filepath.c_str())) == NULL) {
         cout << "Could not open directory" << endl;
         return false;
     }
@@ -384,4 +388,26 @@ void BufferManager::closeAll(){
 			closeDB(i);
 		}
 	}
+}
+
+int BufferManager::dropDB(string filepath, string filename){
+	int mdtptr;
+	mdtptr = isFileExists(filename);
+	if(mdtptr==-1){
+		return(remove((filepath+filename).c_str()));
+	}
+	else {
+		closeDB(mdtptr);
+		int err = remove((filepath+filename).c_str());
+		if(err == 0){
+			mdt[mdtptr].id = -1; 
+			mdt[mdtptr].isopen = false;
+			mdt[mdtptr].dbName = "";
+			mdt[mdtptr].dbPath = "";
+			return 0;
+		}
+		else
+			return err;
+	}
+	return -1;
 }

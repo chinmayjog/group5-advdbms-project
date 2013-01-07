@@ -27,6 +27,7 @@ typedef struct buf{
 
 typedef struct metadatatable{
 	string dbName;
+	string dbPath;
 	int id; //id of metadatatable to which all others refer to get fd
 	fstream fd;
 	bool isopen;
@@ -61,17 +62,18 @@ class BufferManager {
 	public:
 		 static BufferManager* getBufferManager();
 		 static void releaseBuffer();
-		 bool listDBs(vector<string> &files);
+		 bool listDBs(string filepath, vector<string> &files);
 		 void setPageSize(int pageSizeInBytes);
 		 int  initializeCache(int numPages);
 		 int  getPageSize();
-		 int  createDB(string filename, int sizeinBytes);
-		 int  openDB(string filename);
+		 int  createDB(string filepath, string filename, int sizeinBytes);
+		 int  openDB(string filepath, string filename);
 		 bool readDB(int fdID, int pgNo, PagePriority p, char* dest);
 		 bool writeDB(int fdID, int pgNo, PagePriority p, char* src);
 		 int  expandDB(int mdtID, int size);
 		 int  closeDB(int fdID);
 		 void closeAll();
+		 int  dropDB(string filepath, string filename);
 		 int  getPageCount(int mdtID);
 		 bool commitFile(int mdtID);
 		 bool commitCache();
