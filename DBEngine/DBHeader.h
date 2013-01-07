@@ -6,23 +6,25 @@
 #include<iomanip>
 #include<cstring>
 
+#include"globalDBEngine.h"
+
 #ifndef dbHeaderA
 #define DBHEADERPAGESIZE 8192
 #endif
-#ifndef dbHeaderB
+//#ifndef dbHeaderB
 //#define DBROOT "/home/krishna/advdbms/group5-advdbms-project/kptestsample"
-#define DBROOT "./"
-#endif
+//#define DBROOT "./"
+//#endif
 #define FREEPAGEPTR 0
 #define SYSTABLEPTR FREEPAGEPTR+sizeof(int)
 #define SYSCOLUMNPTR SYSTABLEPTR+sizeof(int)
 #define SYSINDEXPTR SYSCOLUMNPTR+sizeof(int)
 #define TOTDBSIZEPTR SYSINDEXPTR+sizeof(int)
 #define FILEPATHPTR TOTDBSIZEPTR+sizeof(int)
-#define PAGESIZEPTR FILEPATHPTR+256 // Check this once.... _filePath.length() Not using this because DBHEADER is static table
+#define PAGESIZEPTR FILEPATHPTR+(256*sizeof(char)) // Check this once.... _filePath.length() Not using this because DBHEADER is static table
 #define FREELISTPTR PAGESIZEPTR+sizeof(int)
 #define DBNAMEPTR FREELISTPTR+sizeof(int)
-#define PAGEPRIORITYPTR DBNAMEPTR+64 // Check this once.... _dataBaseName.length() Not using this because DBHEADER is a static table
+#define PAGEPRIORITYPTR DBNAMEPTR+(64*sizeof(char)) // Check this once.... _dataBaseName.length() Not using this because DBHEADER is a static table
 #define TOTPAGEPTR PAGEPRIORITYPTR+sizeof(short)
 
 using namespace std;
@@ -46,9 +48,9 @@ class DBHeader
 
 	public: DBHeader()
 		{
-			_sysTables = 2;
-			_sysColumns = 3;
-			_sysIndex = 4;
+			_sysTables = 1;
+			_sysColumns = 2;
+			_sysIndex = 3;
 			//_directoryPage = NULL;
 			_totalDBSize = 1024*1024*100;
 			_filePath = "File Path";
@@ -58,6 +60,7 @@ class DBHeader
 			_priority = 50;
 			_totalPages = _totalDBSize/_pageSize;
 			_noFreePages = _totalPages - 4;
+			_pageID = 0;
 			//_curLTableID = 0;
 		}
 
@@ -72,11 +75,49 @@ class DBHeader
 			memcpy(&_sysIndex,&buffer[SYSINDEXPTR],sizeof(int));//memcpy operation here
 			//_directoryPage = NULL;//memcpy operation here
 			memcpy(&_totalDBSize,&buffer[TOTDBSIZEPTR],sizeof(int));//_totalDBSize = 1024*1024*100;
-			memcpy(filePathBuf,&buffer[FILEPATHPTR],256);//memcpy operation here
+			memcpy(filePathBuf,&buffer[FILEPATHPTR],256*sizeof(char));//memcpy operation here
 			memcpy(&_pageSize,&buffer[PAGESIZEPTR],sizeof(int));//memcpy operation here
 			memcpy(&_freePtr,&buffer[FREELISTPTR],sizeof(int));//memcpy operation here
-			memcpy(dbNameBuf,&buffer[DBNAMEPTR],64);//memcpy operation here
+			memcpy(dbNameBuf,&buffer[DBNAMEPTR],64*sizeof(char));//memcpy operation here
 			memcpy(&_priority,&buffer[PAGEPRIORITYPTR],sizeof(short));//memcpy operation here
+			memcpy(&_pageID,&buffer[PAGEIDPTR],sizeof(int));
+			_totalPages = _totalDBSize/_pageSize;
+
+			for(int i=0;i<64;i++)
+			{
+				if(dbNameBuf[i] == '$')
+					break;
+				_dataBaseName = _dataBaseName+dbNameBuf[i];
+			}
+			for(int i=0;i<256;i++)
+			{
+				if(filePathBuf[i] == '$')
+					break;
+				_filePath = _filePath+filePathBuf[i];
+			}
+
+			delete dbNameBuf;
+			delete filePathBuf;
+		}
+
+		DBHeader(char *buffer,int pageSize)
+		{
+			char * filePathBuf = new char [256];
+			char * dbNameBuf = new char [64];
+
+			_pageSize = pageSize;
+
+			memcpy(&_noFreePages,&buffer[FREEPAGEPTR],sizeof(int));//memcpy operation here
+			memcpy(&_sysTables,&buffer[SYSTABLEPTR],sizeof(int));//memcpy operation here
+			memcpy(&_sysColumns,&buffer[SYSCOLUMNPTR],sizeof(int));//memcpy operation here
+			memcpy(&_sysIndex,&buffer[SYSINDEXPTR],sizeof(int));//memcpy operation here
+			//_directoryPage = NULL;//memcpy operation here
+			memcpy(&_totalDBSize,&buffer[TOTDBSIZEPTR],sizeof(int));//_totalDBSize = 1024*1024*100;
+			memcpy(filePathBuf,&buffer[FILEPATHPTR],256*sizeof(char));//memcpy operation here
+			memcpy(&_freePtr,&buffer[FREELISTPTR],sizeof(int));//memcpy operation here
+			memcpy(dbNameBuf,&buffer[DBNAMEPTR],64*sizeof(char));//memcpy operation here
+			memcpy(&_priority,&buffer[PAGEPRIORITYPTR],sizeof(short));//memcpy operation here
+			memcpy(&_pageID,&buffer[PAGEIDPTR],sizeof(int));
 			_totalPages = _totalDBSize/_pageSize;
 
 			for(int i=0;i<64;i++)
@@ -98,28 +139,29 @@ class DBHeader
 
 		DBHeader(int pageSize,string dataBaseName)
 		{
-			_sysTables = 2;
-			_sysColumns = 3;
-			_sysIndex = 4;
+			_sysTables = 1;
+			_sysColumns = 2;
+			_sysIndex = 3;
 			//_directoryPage = NULL;
 			_totalDBSize = 1024*1024*100;
 			_filePath = DBROOT;
 			//_filePath = _filePath+"/";
-			_filePath = _filePath+dataBaseName;
-			_filePath = _filePath+".dat";
+			//_filePath = _filePath+dataBaseName;
+			//_filePath = _filePath+".dat";
 			_pageSize = pageSize;
 			_freePtr = 5;
 			_dataBaseName = dataBaseName;
 			_priority = 50;
 			_totalPages = _totalDBSize/_pageSize;
 			_noFreePages = _totalPages - 4;
+			_pageID = 0;
 		}
 
 		DBHeader(int size,int pageSize,string dataBaseName)
 		{
-			_sysTables = 2;
-			_sysColumns = 3;
-			_sysIndex = 4;
+			_sysTables = 1;
+			_sysColumns = 2;
+			_sysIndex = 3;
 			//_directoryPage = NULL;
 			_totalDBSize = size;
 			_filePath = DBROOT;
@@ -135,6 +177,7 @@ class DBHeader
 			_priority = 50;
 			_totalPages = _totalDBSize/_pageSize;
 			_noFreePages = _totalPages - 4;
+			_pageID = 0;
 		}
 
 		~DBHeader()
