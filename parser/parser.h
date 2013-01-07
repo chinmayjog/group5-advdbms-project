@@ -4,19 +4,15 @@ enum conjunction {EQL, NEQL, LET, LEQ, GRT, GEQ, ANDC, ORC, LIKEC, INC};
 enum optype {INTEGER, FLOAT, STRING, DT, TM, DTTM, STRUCTPTR, ARRAY};
 
 typedef struct dateStruct{
-	int dd;
-	int mm;
-	int yyyy;
-	int hh;
-	int mi;
-	int ss;
+	char date[8];
+	char time[6];
 	int tz;
 }dateStruct;
 
 dateStruct* getDate(char []);
 
 typedef struct columnStruct{
-	char name[50];
+	char name[64];
 	char type[20];
 	char function[10];
 	int sizeofField1;
@@ -30,10 +26,12 @@ typedef struct columnStruct{
 	char defaultstring[257];
 	short isPrimary;
 	short isAutoIncrement;
+	short isDefault;
+	short isNullable;
 }columnStruct;
 
 typedef struct insertionStruct{
-	char colname[50];
+	char colname[64];
 	char type[20];
 	long i;
 	double f;
@@ -44,7 +42,7 @@ typedef struct insertionStruct{
 typedef struct conditionStruct{
 	struct conditionStruct *lhs, *rhs;
 	conjunction cond;
-	char colname[100];
+	char colname[64];
 	char rightstr[50][100];
 	int rightint[50];
 	float rightflt[50];
@@ -63,10 +61,10 @@ void traverse(condition *node);
 
 typedef struct {
 	int error;
-    char type[100];
-	char dbname[100];
-	char index[100];
-    char table[100];
+    char type[8];
+	char dbname[64];
+	char index[64];
+    char table[64];
     columnStruct columns[20];
     int cntColumns;
     condition *root;
