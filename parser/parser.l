@@ -9,6 +9,8 @@ using namespace std;
 
 alpha [A-Za-z]
 digit [0-9]
+hour  [0-2]
+minsec [0-5]
 %%
 [ \t\n]
 create						return CREATE;
@@ -54,9 +56,9 @@ in							return IN;
 [-]?{digit}{digit}*			{yylval.integer = atoi(yytext); return INTNUM;}
 [-]?{digit}+"."{digit}*		{yylval.flt = atof(yytext); return DBLNUM;}
 {alpha}({alpha}|{digit})* 	{strcpy(yylval.id, yytext); return ID;}
-{digit}{digit}"/"{digit}{digit}"/"{digit}{digit}{digit}{digit}" "{digit}{digit}":"{digit}{digit}":"{digit}{digit} {strcpy(yylval.datetm, yytext); return DATETIME;}
+{digit}{digit}"/"{digit}{digit}"/"{digit}{digit}{digit}{digit}" "{hour}{digit}":"{minsec}{digit}":"{minsec}{digit} {strcpy(yylval.datetm, yytext); return DATETIME;}
 {digit}{digit}"/"{digit}{digit}"/"{digit}{digit}{digit}{digit}  {strcpy(yylval.datetm, yytext); return DATE;}
-{digit}{digit}":"{digit}{digit}":"{digit}{digit} {strcpy(yylval.datetm, yytext); return TIME;}
+{hour}{digit}":"{minsec}{digit}":"{minsec}{digit} {strcpy(yylval.datetm, yytext); return TIME;}
 "<"							return LT;
 "<="             			return LE;
 ">"							return GT;
