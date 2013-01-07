@@ -24,12 +24,13 @@ void initCache(BufferManager *bu){
 
 void createDB(BufferManager *bu){
 	string filename;
+	string filepath = "data/";
 	int size;
 	cout<<"\n Enter the database name: ";
 	cin>>filename;
 	cout<<"\n Enter the size of database in bytes(20480): ";
 	cin>>size;
-	int errcode = (*bu).createDB(filename, size);
+	int errcode = (*bu).createDB(filepath, filename, size);
 	if(errcode == 1)
 		cout<<"\n Database created successfully."<<endl;
 	else if(errcode == -1)
@@ -40,9 +41,10 @@ void createDB(BufferManager *bu){
 
 void openDB(BufferManager *bu){
 	string filename;
+	string filepath = "data/";
 	cout<<"\n Enter the database name: ";
 	cin>>filename;
-	int errcode = (*bu).openDB(filename);
+	int errcode = (*bu).openDB(filepath, filename);
 	if(errcode >= 0)
 		cout<<"\n Database opened successfully with fileID: "<<errcode<<"."<<endl;
 	else if(errcode == -1)
@@ -121,6 +123,21 @@ void closeDB(BufferManager *bu){
 	}
 }
 
+void dropDB(BufferManager *bu){
+	string filename;
+	string filepath = "data/";
+	cout<<"\n Enter the database name: ";
+	cin>>filename;
+	int errcode = (*bu).dropDB(filepath, filename);
+	if(errcode == 0){
+		cout<<endl<<" Database dropped successfully.";
+	}
+	else{
+		cout<<endl<<" Database could not be dropped.";
+	}
+	
+}
+
 void process_choice(int choice){
 	BufferManager *bu = BufferManager::getBufferManager();
 	float hr = -1;
@@ -156,14 +173,17 @@ void process_choice(int choice){
 			releaseCache(bu);
 			break;
 		case 11:
+			dropDB(bu);
+			break;
+		case 12:
 			cout<<endl<<"Enter Cache id: ";
 			cin>>choice;
 			(*bu).printHex(choice, (*bu).getPageSize());
 			break;
-		case 12:
+		case 13:
 			(*bu).printCacheHeaders();
 			break;
-		case 13:
+		case 14:
 			hr = (*bu).getHitRate();
 			if(hr!=-1)
 				cout<<endl<<"\tHit rate is: "<<hr*100.0<<" %"<<endl;
@@ -173,7 +193,7 @@ void process_choice(int choice){
 				cout<<"	has been performed on cache yet."<<endl;
 			}
 			break;			
-		case 14:
+		case 15:
 		//	releaseCache(bu);
 			break;
 	}
@@ -196,20 +216,21 @@ int BufferManagerInterface(){
 			cout<<"\n\t 8. Close Database";
 			cout<<"\n\t 9. Commit Cache";
 			cout<<"\n\t10. Release Cache";
-			cout<<"\n\t11. Print Hex Dump"; 
-			cout<<"\n\t12. Show Cache Page Header";
-			cout<<"\n\t13. Show Hit Rate";
-			cout<<"\n\t14. Exit Buffer Manager"; 
-			cout<<"\n\t Choice [1:14]: ";
-			while(!(cin>>choice) || choice > 14 || choice < 1){
+			cout<<"\n\t11. Drop Database";
+			cout<<"\n\t12. Print Hex Dump"; 
+			cout<<"\n\t13. Show Cache Page Header";
+			cout<<"\n\t14. Show Hit Rate";
+			cout<<"\n\t15. Exit Buffer Manager"; 
+			cout<<"\n\t Choice [1:15]: ";
+			while(!(cin>>choice) || choice > 15 || choice < 1){
 				cin.clear();
 				cin.ignore(numeric_limits<streamsize>::max(), '\n');
 				cout<<endl<<"\tInvalid Choice. Try Again: ";
 			};
-			if(choice > 14)
+			if(choice > 15)
 				continue;
 			else
 				process_choice(choice);
-	}while(choice!=14);
+	}while(choice!=15);
 	return 0;
 }
