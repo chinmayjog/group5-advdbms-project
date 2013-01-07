@@ -275,21 +275,21 @@ int SysColumnsEntry::fillBuffer(char *entryBuffer)
 	{
 		dataTypeBuf[i] = _dataType[i];
 	}
-	memcpy(&entryBuffer[SYSCOLTABLENAMEPTR],tabNameBuf,64);
+	memcpy(&entryBuffer[SYSCOLTABLENAMEPTR],tabNameBuf,64*sizeof(char));
 	/*cout<<"Buffer contents: From "<<TABLENAMEPTR<<" to "<<TABLENAMEPTR+64<<" : ";
 	for(int i = TABLENAMEPTR;i<64;i++)
 	{
 		cout<<entryBuffer[i];
 	}
 	cout<<endl;*/
-	memcpy(&entryBuffer[SYSCOLDBNAMEPTR],dbNameBuf,64);
+	memcpy(&entryBuffer[SYSCOLDBNAMEPTR],dbNameBuf,64*sizeof(char));
 	/*cout<<"Buffer contents: From "<<DBNAMEPTR<<" to "<<DBNAMEPTR+64<<" : ";
 	for(int i = DBNAMEPTR;i<DBNAMEPTR+64;i++)
 	{
 		cout<<entryBuffer[i];
 	}
 	cout<<endl;*/
-	memcpy(&entryBuffer[SYSCOLCOLNAMEPTR],colNameBuf,64);
+	memcpy(&entryBuffer[SYSCOLCOLNAMEPTR],colNameBuf,64*sizeof(char));
 	/*cout<<"Buffer contents: From "<<COLNAMEPTR<<" to "<<COLNAMEPTR+64<<" : ";
 	for(int i = COLNAMEPTR;i<COLNAMEPTR+64;i++)
 	{
@@ -303,7 +303,7 @@ int SysColumnsEntry::fillBuffer(char *entryBuffer)
 		cout<<entryBuffer[i];
 	}
 	cout<<endl;*/
-	memcpy(&entryBuffer[SYSCOLCOLDEFPTR],columnDefaultBuf,256);
+	memcpy(&entryBuffer[SYSCOLCOLDEFPTR],columnDefaultBuf,256*sizeof(char));
 	/*cout<<"Buffer contents: From "<<COLDEFPTR<<" to "<<COLDEFPTR+256<<" : ";
 	for(int i = COLDEFPTR;i<COLDEFPTR+256;i++)
 	{
@@ -317,7 +317,7 @@ int SysColumnsEntry::fillBuffer(char *entryBuffer)
 		cout<<entryBuffer[i];
 	}
 	cout<<endl;*/
-	memcpy(&entryBuffer[SYSCOLDATATYPEPTR],dataTypeBuf,8);
+	memcpy(&entryBuffer[SYSCOLDATATYPEPTR],dataTypeBuf,8*sizeof(char));
 	/*cout<<"Buffer contents: From "<<DATATYPEPTR<<" to "<<DATATYPEPTR+8<<" : ";
 	for(int i = DATATYPEPTR;i<DATATYPEPTR+8;i++)
 	{
@@ -343,7 +343,7 @@ int SysColumnsEntry::fillBuffer(char *entryBuffer)
 		cout<<entryBuffer[i];
 	}
 	cout<<endl;*/
-	memcpy(&entryBuffer[SYSCOLREMARKSPTR],remarksBuf,256);
+	memcpy(&entryBuffer[SYSCOLREMARKSPTR],remarksBuf,256*sizeof(char));
 	/*cout<<"Buffer contents: From "<<REMARKSPTR<<" to "<<REMARKSPTR+256<<" : ";
 	for(int i = REMARKSPTR;i<REMARKSPTR+256;i++)
 	{
@@ -399,17 +399,17 @@ int SysColumnsEntry::getDataBuffer(char *entryBuffer)
 	char * columnDefaultBuf = new char [256];
 	char * dataTypeBuf = new char [8];
 
-	memcpy(tabNameBuf,&entryBuffer[SYSCOLTABLENAMEPTR],64);
-	memcpy(dbNameBuf,&entryBuffer[SYSCOLDBNAMEPTR],64);
-	memcpy(colNameBuf,&entryBuffer[SYSCOLCOLNAMEPTR],64);
+	memcpy(tabNameBuf,&entryBuffer[SYSCOLTABLENAMEPTR],64*sizeof(char));
+	memcpy(dbNameBuf,&entryBuffer[SYSCOLDBNAMEPTR],64*sizeof(char));
+	memcpy(colNameBuf,&entryBuffer[SYSCOLCOLNAMEPTR],64*sizeof(char));
 	memcpy(&_ordinalPosition,&entryBuffer[SYSCOLORDPOSPTR],sizeof(int));
-	memcpy(columnDefaultBuf,&entryBuffer[SYSCOLCOLDEFPTR],256);
+	memcpy(columnDefaultBuf,&entryBuffer[SYSCOLCOLDEFPTR],256*sizeof(char));
 	memcpy(&_isNullable,&entryBuffer[SYSCOLISNULLPTR],sizeof(char));
-	memcpy(dataTypeBuf,&entryBuffer[SYSCOLDATATYPEPTR],8);
+	memcpy(dataTypeBuf,&entryBuffer[SYSCOLDATATYPEPTR],8*sizeof(char));
 	memcpy(&_length,&entryBuffer[SYSCOLLENPTR],sizeof(int));
 	memcpy(&_scale,&entryBuffer[SYSCOLSCALEPTR],sizeof(short));
 	memcpy(&_updatable,&entryBuffer[SYSCOLUPDATABLEPTR],sizeof(char));
-	memcpy(remarksBuf,&entryBuffer[SYSCOLREMARKSPTR],256);
+	memcpy(remarksBuf,&entryBuffer[SYSCOLREMARKSPTR],256*sizeof(char));
 	memcpy(&_keyPos,&entryBuffer[SYSCOLKEYPOSPTR],sizeof(short));
 	memcpy(&_foreignKey,&entryBuffer[SYSCOLFORKEYPTR],sizeof(char));
 	memcpy(&_generatedAttribute,&entryBuffer[SYSCOLGENATTRPTR],sizeof(char));
@@ -745,7 +745,7 @@ int SysColumns::deleteSysColumnEntry(string columnName,char * sysColumnBuffer)
 
 		char * colName = new char [64];
 
-		memcpy(colName,&newEntryBuff[SYSCOLCOLNAMEPTR],64);
+		memcpy(colName,&newEntryBuff[SYSCOLCOLNAMEPTR],64*sizeof(char));
 
 		string entryColumnName;
 		for(int j=0;j<64;j++)
@@ -765,6 +765,95 @@ int SysColumns::deleteSysColumnEntry(string columnName,char * sysColumnBuffer)
 		}
 
 		delete colName;
+		delete newEntryBuff;
+	}
+
+	if(found == 0)
+	{
+		cout<<"Column not found... Continue searching..."<<endl;
+		return -1;// Entry not found
+	}
+
+	alreadyDeleted = '0';
+	memcpy(&sysColumnBuffer[FIRSTSYSCOLSLOTPTR-(i*SYSCOLSLOTSIZE)],&alreadyDeleted,SYSCOLSLOTSIZE);
+	return i+1; // SysColumnEntry found Deleted at (i+1)th Slot
+}
+
+int SysColumns::deleteSysColumnEntry(string columnName,string tableName,string dbName,string dataType,char * sysColumnBuffer)
+{
+	// Subtract the pointer by SysColumnEntrysize
+	// Decrement the no. of SysColumnEntries
+
+	bool found = 0;
+	int entryID,i;
+	char alreadyDeleted;
+
+	for(i = 0;i<_noOfEntries;i++)
+	{
+		memcpy(&alreadyDeleted,&sysColumnBuffer[FIRSTSYSCOLSLOTPTR-(i*SYSCOLSLOTSIZE)],SYSCOLSLOTSIZE);
+
+		if(alreadyDeleted == '0')
+		{
+			cout<<"The entry is deleted... Don't search there.....";
+			continue;
+		}
+
+		char * newEntryBuff = new char [SYSCOLUMNENTRYSIZE];
+
+		memcpy(newEntryBuff,&sysColumnBuffer[0+(i*SYSCOLUMNENTRYSIZE)],SYSCOLUMNENTRYSIZE);
+
+		char * colName = new char [64];
+		char * tabName = new char [64];
+		char * dataBaseName = new char [64];
+		char * dataType = new char [8];
+
+		memcpy(colName,&newEntryBuff[SYSCOLCOLNAMEPTR],64*sizeof(char));
+		memcpy(tabName,&newEntryBuff[SYSCOLTABLENAMEPTR],64*sizeof(char));
+		memcpy(dataBaseName,&newEntryBuff[SYSCOLDBNAMEPTR],64*sizeof(char));
+		memcpy(dataType,&newEntryBuff[SYSCOLDATATYPEPTR],8*sizeof(char));
+
+		string entryColumnName,entryTableName,entryDBName,entryDataType;
+		for(int j=0;j<64;j++)
+		{
+			if(colName[j] == '$')
+				break;
+			entryColumnName = entryColumnName+colName[j];
+		}
+		for(int j=0;j<64;j++)
+		{
+			if(tabName[j] == '$')
+				break;
+			entryTableName = entryTableName+tabName[j];
+		}
+		for(int j=0;j<64;j++)
+		{
+			if(dataBaseName[j] == '$')
+				break;
+			entryDBName = entryDBName+dataBaseName[j];
+		}
+		for(int j=0;j<8;j++)
+		{
+			if(dataType[j] == '$')
+				break;
+			entryDataType = entryDataType+dataType[j];
+		}
+
+		if(columnName == entryColumnName && entryTableName == tableName && entryDBName == dbName && entryDataType == dataType)
+		{
+			found = 1;
+			entryID = i;
+			delete colName;
+			delete tabName;
+			delete dataBaseName;
+			delete dataType;
+			delete newEntryBuff;
+			break;
+		}
+
+		delete colName;
+		delete tabName;
+		delete dataBaseName;
+		delete dataType;
 		delete newEntryBuff;
 	}
 
@@ -803,7 +892,7 @@ int SysColumns::searchSysColumnEntry(string columnName,char * sysColumnBuffer)
 
 		char * colName = new char [64];
 
-		memcpy(colName,&newEntryBuff[SYSCOLCOLNAMEPTR],64);
+		memcpy(colName,&newEntryBuff[SYSCOLCOLNAMEPTR],64*sizeof(char));
 
 		string entryColumnName;
 		for(int j=0;j<64;j++)
@@ -833,4 +922,91 @@ int SysColumns::searchSysColumnEntry(string columnName,char * sysColumnBuffer)
 	}
 
 	return i+1; // SysColumnEntry found at (i+1)th Slot
+}
+
+int SysColumns::searchSysColumnEntry(string columnName,string tableName,string dbName,string dataType,char * sysColumnBuffer)
+{
+	// Subtract the pointer by SysColumnEntrysize
+	// Decrement the no. of SysColumnEntries
+
+	bool found = 0;
+	int entryID,i;
+	char alreadyDeleted;
+
+	for(i = 0;i<_noOfEntries;i++)
+	{
+		memcpy(&alreadyDeleted,&sysColumnBuffer[FIRSTSYSCOLSLOTPTR-(i*SYSCOLSLOTSIZE)],SYSCOLSLOTSIZE);
+
+		if(alreadyDeleted == '0')
+		{
+			cout<<"The entry is deleted... Don't search there.....";
+			continue;
+		}
+
+		char * newEntryBuff = new char [SYSCOLUMNENTRYSIZE];
+
+		memcpy(newEntryBuff,&sysColumnBuffer[0+(i*SYSCOLUMNENTRYSIZE)],SYSCOLUMNENTRYSIZE);
+
+		char * colName = new char [64];
+		char * tabName = new char [64];
+		char * dataBaseName = new char [64];
+		char * dataType = new char [8];
+
+		memcpy(colName,&newEntryBuff[SYSCOLCOLNAMEPTR],64*sizeof(char));
+		memcpy(tabName,&newEntryBuff[SYSCOLTABLENAMEPTR],64*sizeof(char));
+		memcpy(dataBaseName,&newEntryBuff[SYSCOLDBNAMEPTR],64*sizeof(char));
+		memcpy(dataType,&newEntryBuff[SYSCOLDATATYPEPTR],8*sizeof(char));
+
+		string entryColumnName,entryTableName,entryDBName,entryDataType;
+		for(int j=0;j<64;j++)
+		{
+			if(colName[j] == '$')
+				break;
+			entryColumnName = entryColumnName+colName[j];
+		}
+		for(int j=0;j<64;j++)
+		{
+			if(tabName[j] == '$')
+				break;
+			entryTableName = entryTableName+tabName[j];
+		}
+		for(int j=0;j<64;j++)
+		{
+			if(dataBaseName[j] == '$')
+				break;
+			entryDBName = entryDBName+dataBaseName[j];
+		}
+		for(int j=0;j<8;j++)
+		{
+			if(dataType[j] == '$')
+				break;
+			entryDataType = entryDataType+dataType[j];
+		}
+
+		if(columnName == entryColumnName && entryTableName == tableName && entryDBName == dbName && entryDataType == dataType)
+		{
+			found = 1;
+			entryID = i;
+			delete colName;
+			delete tabName;
+			delete dataBaseName;
+			delete dataType;
+			delete newEntryBuff;
+			break;
+		}
+
+		delete colName;
+		delete tabName;
+		delete dataBaseName;
+		delete dataType;
+		delete newEntryBuff;
+	}
+
+	if(found == 0)
+	{
+		cout<<"Column not found... Continue searching..."<<endl;
+		return -1;// Entry not found
+	}
+
+	return i+1; // SysColumnEntry found Deleted at (i+1)th Slot
 }

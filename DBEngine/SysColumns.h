@@ -20,17 +20,17 @@
 #define SYSCOLSLOTSIZE (sizeof(char))
 
 #define SYSCOLTABLENAMEPTR 0
-#define SYSCOLDBNAMEPTR (SYSCOLTABLENAMEPTR+64)
-#define SYSCOLCOLNAMEPTR (SYSCOLDBNAMEPTR+64)
-#define SYSCOLORDPOSPTR (SYSCOLCOLNAMEPTR+64)
+#define SYSCOLDBNAMEPTR (SYSCOLTABLENAMEPTR+64*sizeof(char))
+#define SYSCOLCOLNAMEPTR (SYSCOLDBNAMEPTR+64*sizeof(char))
+#define SYSCOLORDPOSPTR (SYSCOLCOLNAMEPTR+64*sizeof(char))
 #define SYSCOLCOLDEFPTR (SYSCOLORDPOSPTR+sizeof(int))
-#define SYSCOLISNULLPTR (SYSCOLCOLDEFPTR+256)
+#define SYSCOLISNULLPTR (SYSCOLCOLDEFPTR+256*sizeof(char))
 #define SYSCOLDATATYPEPTR (SYSCOLISNULLPTR+sizeof(char))
-#define SYSCOLLENPTR (SYSCOLDATATYPEPTR+8)
+#define SYSCOLLENPTR (SYSCOLDATATYPEPTR+8*sizeof(char))
 #define SYSCOLSCALEPTR (SYSCOLLENPTR+sizeof(int))
 #define SYSCOLUPDATABLEPTR (SYSCOLSCALEPTR+sizeof(short))
 #define SYSCOLREMARKSPTR (SYSCOLUPDATABLEPTR+sizeof(char))
-#define SYSCOLKEYPOSPTR (SYSCOLREMARKSPTR+256)
+#define SYSCOLKEYPOSPTR (SYSCOLREMARKSPTR+256*sizeof(char))
 #define SYSCOLFORKEYPTR (SYSCOLKEYPOSPTR+sizeof(short))
 #define SYSCOLGENATTRPTR (SYSCOLFORKEYPTR+sizeof(char))
 #define SYSCOLHIDDENPTR (SYSCOLGENATTRPTR+sizeof(char))
@@ -148,7 +148,7 @@ class SysColumns
 		{
 			_pagePriority = 50;
 			_nextSysColumnsPage = -1;
-			_pageID = 3;
+			_pageID = 2;
 			_curSysColumnsSize = SYSCOLUMNMETADATASIZE;
 			_remSysColumnsSize = SYSCOLUMNENTRYSPACE;
 			_sysColumnsEntryPointer = 0;
@@ -243,6 +243,8 @@ class SysColumns
 		bool checkEntryInsertion();
 		int createNewSysColumnEntry(char *entryBuffer,char * sysColumnBuffer);
 		int searchSysColumnEntry(string columnName,char * sysColumnBuffer);
+		int searchSysColumnEntry(string columnName,string tableName,string dbName,string dataType,char * sysColumnBuffer);
 		// Check if I can write it as a list of SysColumnEntry objects instead of passing the buffer around.......
 		int deleteSysColumnEntry(string columnName,char * sysColumnBuffer);
+		int deleteSysColumnEntry(string columnName,string tableName,string dbName,string dataType,char * sysColumnBuffer);
 };
