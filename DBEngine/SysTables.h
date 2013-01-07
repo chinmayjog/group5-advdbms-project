@@ -21,19 +21,19 @@
 #define SYSTABSLOTSIZE (sizeof(char))
 
 #define SYSTABTABLENAMEPTR 0
-#define SYSTABDBNAMEPTR SYSTABTABLENAMEPTR+64
-#define SYSTABTABLETYPEPTR SYSTABDBNAMEPTR+64
-#define SYSTABCOLCOUNTPTR SYSTABTABLETYPEPTR+sizeof(char)
-#define SYSTABROWFORMATPTR SYSTABCOLCOUNTPTR+sizeof(short)
-#define SYSTABTABLEROWSPTR SYSTABROWFORMATPTR+sizeof(char)
-#define SYSTABNOPAGESPTR SYSTABTABLEROWSPTR+sizeof(int)
-#define SYSTABREMARKSPTR SYSTABNOPAGESPTR+sizeof(int)
-#define SYSTABKEYCOLSPTR SYSTABREMARKSPTR+256
-#define SYSTABDATALENGTHPTR SYSTABKEYCOLSPTR+sizeof(short)
-#define SYSTABRECLENGTHPTR SYSTABDATALENGTHPTR+sizeof(short)
-#define SYSTABENCODINGSCHEMEPTR SYSTABRECLENGTHPTR+sizeof(short)
-#define SYSTABAVGROWLENGTHPTR SYSTABENCODINGSCHEMEPTR+sizeof(char)
-#define SYSTABDIRPAGEPTR SYSTABAVGROWLENGTHPTR+sizeof(int)
+#define SYSTABDBNAMEPTR (SYSTABTABLENAMEPTR+64*sizeof(char))
+#define SYSTABTABLETYPEPTR (SYSTABDBNAMEPTR+64*sizeof(char))
+#define SYSTABCOLCOUNTPTR (SYSTABTABLETYPEPTR+sizeof(char))
+#define SYSTABROWFORMATPTR (SYSTABCOLCOUNTPTR+sizeof(short))
+#define SYSTABTABLEROWSPTR (SYSTABROWFORMATPTR+sizeof(char))
+#define SYSTABNOPAGESPTR (SYSTABTABLEROWSPTR+sizeof(int))
+#define SYSTABREMARKSPTR (SYSTABNOPAGESPTR+sizeof(int))
+#define SYSTABKEYCOLSPTR (SYSTABREMARKSPTR+256*sizeof(char))
+#define SYSTABDATALENGTHPTR (SYSTABKEYCOLSPTR+sizeof(short))
+#define SYSTABRECLENGTHPTR (SYSTABDATALENGTHPTR+sizeof(short))
+#define SYSTABENCODINGSCHEMEPTR (SYSTABRECLENGTHPTR+sizeof(short))
+#define SYSTABAVGROWLENGTHPTR (SYSTABENCODINGSCHEMEPTR+sizeof(char))
+#define SYSTABDIRPAGEPTR (SYSTABAVGROWLENGTHPTR+sizeof(int))
 
 using namespace std;
 
@@ -153,7 +153,7 @@ class SysTables
 			_remSysTableSize = SYSTABLEENTRYSPACE;
 			_sysTableEntryPointer = 0;
 			_noOfEntries = 0;
-			_pageID = 2;
+			_pageID = 1;
 		}
 
 		SysTables(int pageID)
@@ -245,6 +245,8 @@ class SysTables
 		bool checkEntryInsertion();
 		int createNewSysTableEntry(char *entryBuffer,char *sysTableBuffer);
 		int searchSysTableEntry(string tableName,char * sysTableBuffer);
+		int searchSysTableEntry(string tableName,string dbName,char * sysTableBuffer);
 		// Check if I can write it as a list of SysTableEntry objects instead of passing the buffer around.......
 		int deleteSysTableEntry(string tabName,char * sysTableBuffer);
+		int deleteSysTableEntry(string tabName,string dbName,char * sysTableBuffer);
 };
