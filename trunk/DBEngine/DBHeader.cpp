@@ -248,12 +248,13 @@ void DBHeader::writeDBHeader(char *buffer)
 	memcpy(&buffer[SYSINDEXPTR],&_sysIndex,sizeof(int));//memcpy operation here
 	//_directoryPage = NULL;//memcpy operation here
 	memcpy(&buffer[TOTDBSIZEPTR],&_totalDBSize,sizeof(int));//_totalDBSize = 1024*1024*100;
-	memcpy(&buffer[FILEPATHPTR],filePathBuf,256);//memcpy operation here
+	memcpy(&buffer[FILEPATHPTR],filePathBuf,256*sizeof(char));//memcpy operation here
 	memcpy(&buffer[PAGESIZEPTR],&_pageSize,sizeof(int));//memcpy operation here
 	memcpy(&buffer[FREELISTPTR],&_freePtr,sizeof(int));//memcpy operation here
-	memcpy(&buffer[DBNAMEPTR],dbNameBuf,64);//memcpy operation here
+	memcpy(&buffer[DBNAMEPTR],dbNameBuf,64*sizeof(char));//memcpy operation here
 	memcpy(&buffer[PAGEPRIORITYPTR],&_priority,sizeof(short));//memcpy operation here
 	memcpy(&buffer[TOTPAGEPTR],&_totalPages,sizeof(int));
+	memcpy(&buffer[PAGEIDPTR],&_pageID,sizeof(int));
 
 	// Call write code of Chinmay
 
