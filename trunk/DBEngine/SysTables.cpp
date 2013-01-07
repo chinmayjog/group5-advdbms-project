@@ -247,14 +247,14 @@ int SysTableEntry::fillBuffer(char *buffer)
 	for(int i = 0;i<len;i++)
 		remarksBuf[i] = _remarks[i];
 
-	memcpy(&buffer[SYSTABTABLENAMEPTR],tabNameBuf,64);
-	memcpy(&buffer[SYSTABDBNAMEPTR],dbNameBuf,64);
+	memcpy(&buffer[SYSTABTABLENAMEPTR],tabNameBuf,64*sizeof(char));
+	memcpy(&buffer[SYSTABDBNAMEPTR],dbNameBuf,64*sizeof(char));
 	memcpy(&buffer[SYSTABTABLETYPEPTR],&_typeTable,sizeof(char));
 	memcpy(&buffer[SYSTABCOLCOUNTPTR],&_colCount,sizeof(unsigned short));
 	memcpy(&buffer[SYSTABROWFORMATPTR],&_rowFormat,sizeof(char));
 	memcpy(&buffer[SYSTABTABLEROWSPTR],&_tableRows,sizeof(int));
 	memcpy(&buffer[SYSTABNOPAGESPTR],&_noPages,sizeof(int));
-	memcpy(&buffer[SYSTABREMARKSPTR],remarksBuf,256);
+	memcpy(&buffer[SYSTABREMARKSPTR],remarksBuf,256*sizeof(char));
 	memcpy(&buffer[SYSTABKEYCOLSPTR],&_keyColumns,sizeof(unsigned short));
 	memcpy(&buffer[SYSTABDATALENGTHPTR],&_dataLength,sizeof(unsigned short));
 	memcpy(&buffer[SYSTABRECLENGTHPTR],&_recLength,sizeof(unsigned short));
@@ -275,14 +275,14 @@ int SysTableEntry::getDataBuffer(char *buffer)
 	char * dbNameBuf = new char [64];
 	char * remarksBuf = new char [256];
 
-	memcpy(tabNameBuf,&buffer[SYSTABTABLENAMEPTR],64);
-	memcpy(dbNameBuf,&buffer[SYSTABDBNAMEPTR],64);
+	memcpy(tabNameBuf,&buffer[SYSTABTABLENAMEPTR],64*sizeof(char));
+	memcpy(dbNameBuf,&buffer[SYSTABDBNAMEPTR],64*sizeof(char));
 	memcpy(&_typeTable,&buffer[SYSTABTABLETYPEPTR],sizeof(char));
 	memcpy(&_colCount,&buffer[SYSTABCOLCOUNTPTR],sizeof(unsigned short));
 	memcpy(&_rowFormat,&buffer[SYSTABROWFORMATPTR],sizeof(char));
 	memcpy(&_tableRows,&buffer[SYSTABTABLEROWSPTR],sizeof(int));
 	memcpy(&_noPages,&buffer[SYSTABNOPAGESPTR],sizeof(int));
-	memcpy(remarksBuf,&buffer[SYSTABREMARKSPTR],256);
+	memcpy(remarksBuf,&buffer[SYSTABREMARKSPTR],256*sizeof(char));
 	memcpy(&_keyColumns,&buffer[SYSTABKEYCOLSPTR],sizeof(unsigned short));
 	memcpy(&_dataLength,&buffer[SYSTABDATALENGTHPTR],sizeof(unsigned short));
 	memcpy(&_recLength,&buffer[SYSTABRECLENGTHPTR],sizeof(unsigned short));
@@ -583,7 +583,7 @@ int SysTables::createNewSysTableEntry(char *entryBuffer,char *sysTableBuffer)
 
 // Check if I can write it as a list of SysTableEntry objects instead of passing the buffer around.......
 
-int SysTables::deleteSysTableEntry(string tabName,char * sysTableBuffer)
+int SysTables::deleteSysTableEntry(string tabName,string dbName,char * sysTableBuffer)
 {
 	// Subtract the pointer by SysTableEntrysize
 	// Decrement the no. of SysTableEntries
@@ -615,9 +615,11 @@ int SysTables::deleteSysTableEntry(string tabName,char * sysTableBuffer)
 		memcpy(newEntryBuff,&sysTableBuffer[0+(i*SYSTABLEENTRYSIZE)],SYSTABLEENTRYSIZE);
 
 		char * tableName = new char [64];
+		char * dataBaseName = new char [64];
 
-		memcpy(tableName,&newEntryBuff[SYSTABTABLENAMEPTR],64);
-		string entryTableName;
+		memcpy(tableName,&newEntryBuff[SYSTABTABLENAMEPTR],64*sizeof(char));
+		memcpy(dataBaseName,&newEntryBuff[SYSTABDBNAMEPTR],64*sizeof(char));
+		string entryTableName,entryDBName;
 		for(int j=0;j<64;j++)
 		{
 			if(tableName[j] == '$')
@@ -625,16 +627,25 @@ int SysTables::deleteSysTableEntry(string tabName,char * sysTableBuffer)
 			entryTableName = entryTableName+tableName[j];
 		}
 
-		if(tabName == entryTableName)
+		for(int j=0;j<64;j++)
+		{
+			if(dataBaseName[j] == '$')
+				break;
+			entryDBName = entryDBName+dataBaseName[j];
+		}
+
+		if(tabName == entryTableName && entryDBName == dbName)
 		{
 			found = 1;
 			entryID = i;
 			delete tableName;
+			delete dataBaseName;
 			delete newEntryBuff;
 			break;
 		}
 
 		delete tableName;
+		delete dataBaseName;
 		delete newEntryBuff;
 	}
 
@@ -674,7 +685,7 @@ int SysTables::deleteSysTableEntry(string tabName,char * sysTableBuffer)
 	return i+1; // SysTableEntry deleted Found at (i+1)th slot
 }
 
-int SysTables::searchSysTableEntry(string tabName,char * sysTableBuffer)
+int SysTables::searchSysTableEntry(string tabName,string dbName,char * sysTableBuffer)
 {
 	// Function to search for SysTable entry
 	// Gets the no. of entries and searches from 0 to noOfEntries*sizeof(Entry)
@@ -698,9 +709,11 @@ int SysTables::searchSysTableEntry(string tabName,char * sysTableBuffer)
 		memcpy(newEntryBuff,&sysTableBuffer[0+(i*SYSTABLEENTRYSIZE)],SYSTABLEENTRYSIZE);
 
 		char * tableName = new char [64];
+		char * dataBaseName = new char [64];
 
-		memcpy(tableName,&newEntryBuff[SYSTABTABLENAMEPTR],64);
-		string entryTableName;
+		memcpy(tableName,&newEntryBuff[SYSTABTABLENAMEPTR],64*sizeof(char));
+		memcpy(dataBaseName,&newEntryBuff[SYSTABDBNAMEPTR],64*sizeof(char));
+		string entryTableName,entryDBName;
 		for(int j=0;j<64;j++)
 		{
 			if(tableName[j] == '$')
@@ -708,16 +721,25 @@ int SysTables::searchSysTableEntry(string tabName,char * sysTableBuffer)
 			entryTableName = entryTableName+tableName[j];
 		}
 
-		if(tabName == entryTableName)
+		for(int j=0;j<64;j++)
+		{
+			if(dataBaseName[j] == '$')
+				break;
+			entryDBName = entryDBName+dataBaseName[j];
+		}
+
+		if(tabName == entryTableName && entryDBName == dbName)
 		{
 			found = 1;
 			entryID = i;
 			delete tableName;
+			delete dataBaseName;
 			delete newEntryBuff;
 			break;
 		}
 
 		delete tableName;
+		delete dataBaseName;
 		delete newEntryBuff;
 	}
 
