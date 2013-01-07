@@ -53,7 +53,7 @@ having          			return HAVING;
 or                 			return OR;
 and               			return AND;
 in							return IN;
-[-]?{digit}{digit}*			{yylval.integer = atoi(yytext); return INTNUM;}
+[-]?{digit}{digit}*			{yylval.integer = atol(yytext); return INTNUM;}
 [-]?{digit}+"."{digit}*		{yylval.flt = atof(yytext); return DBLNUM;}
 {alpha}({alpha}|{digit})* 	{strcpy(yylval.id, yytext); return ID;}
 {digit}{digit}"/"{digit}{digit}"/"{digit}{digit}{digit}{digit}" "{hour}{digit}":"{minsec}{digit}":"{minsec}{digit} {strcpy(yylval.datetm, yytext); return DATETIME;}
