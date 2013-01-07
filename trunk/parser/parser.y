@@ -142,6 +142,7 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 											(q->columns[q->cntColumns]).defaultlong = $4;
 										}
 										(q->columns[q->cntColumns]).isPrimary = 0;
+										(q->columns[q->cntColumns]).isDefault = 1;
 										q->cntColumns = q->cntColumns + 1;
 										
 									}
@@ -154,6 +155,7 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 											(q->columns[q->cntColumns]).defaultdouble = $4;
 										}
 										(q->columns[q->cntColumns]).isPrimary = 0;
+										(q->columns[q->cntColumns]).isDefault = 1;
 										q->cntColumns = q->cntColumns + 1;
 										
 									}
@@ -175,6 +177,7 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 										strcpy((q->columns[q->cntColumns]).type, "varchar"); 
 										(q->columns[q->cntColumns]).sizeofField1 = $4;
 										strcpy((q->columns[q->cntColumns]).defaultstring, $7);
+										(q->columns[q->cntColumns]).isDefault = 1;
 										q->cntColumns = q->cntColumns + 1;
 									}
 				| ID CHAR LPAREN INTNUM RPAREN',' columnlist {
@@ -195,6 +198,7 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 										strcpy((q->columns[q->cntColumns]).type, "char"); 
 										(q->columns[q->cntColumns]).sizeofField1 = $4;
 										strcpy((q->columns[q->cntColumns]).defaultstring, $7);
+										(q->columns[q->cntColumns]).isDefault = 1;
 										q->cntColumns = q->cntColumns + 1;
 									}
 				| ID ID {
@@ -236,6 +240,7 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 											(q->columns[q->cntColumns]).defaultlong = $4;
 										}	
 										(q->columns[q->cntColumns]).isPrimary = 0;
+										(q->columns[q->cntColumns]).isDefault = 1;
 										q->cntColumns = q->cntColumns + 1;
 									}
 				| ID ID DEFAULT DBLNUM{
@@ -247,6 +252,7 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 											(q->columns[q->cntColumns]).defaultdouble = $4;
 										}
 										(q->columns[q->cntColumns]).isPrimary = 0;
+										(q->columns[q->cntColumns]).isDefault = 1;
 										q->cntColumns = q->cntColumns + 1;
 										
 									}
@@ -268,6 +274,7 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 										strcpy((q->columns[q->cntColumns]).type, "varchar"); 
 										(q->columns[q->cntColumns]).sizeofField1 = $4;
 										strcpy((q->columns[q->cntColumns]).defaultstring, $7);
+										(q->columns[q->cntColumns]).isDefault = 1;
 										q->cntColumns = q->cntColumns + 1;
 									}
 				| ID CHAR LPAREN INTNUM RPAREN {
@@ -288,6 +295,7 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 										strcpy((q->columns[q->cntColumns]).type, "char"); 
 										(q->columns[q->cntColumns]).sizeofField1 = $4;
 										strcpy((q->columns[q->cntColumns]).defaultstring, $7);
+										(q->columns[q->cntColumns]).isDefault = 1;
 										q->cntColumns = q->cntColumns + 1;
 									}
 				;
@@ -486,13 +494,6 @@ condition* newConditionStruct(){
 
 dateStruct* getDate(char dt[]){
 	dateStruct* d =(dateStruct *)malloc(sizeof(dateStruct));
-	d->dd = 0;
-	d->mm = 0;
-	d->yyyy = 0;
-	d->hh = 0;
-	d->mi = 0;
-	d->ss = 0;
-	d->tz = 0;
 	char t[5];
 	int i=-1, j=-1, flag = 0, dtflag = 0;
 	if(strlen(dt) > 0){
@@ -511,22 +512,30 @@ dateStruct* getDate(char dt[]){
 				switch(flag)
 				{
 					case 0:
-						d->dd = atoi(t);
+						d->date[0] = t[0];
+						d->date[1] = t[1];
 						break;
 					case 1:
-						d->mm = atoi(t);
+						d->date[2] = t[0];
+						d->date[3] = t[1];
 						break;
 					case 2:
-						d->yyyy = atoi(t);
+						d->date[4] = t[0];
+						d->date[5] = t[1];
+						d->date[6] = t[2];
+						d->date[7] = t[3];
 						break;
 					case 3:
-						d->hh = atoi(t);
+						d->time[0] = t[0];
+						d->time[1] = t[1];
 						break;
 					case 4:
-						d->mi = atoi(t);
+						d->time[2] = t[0];
+						d->time[3] = t[1];
 						break;
 					case 5:
-						d->ss = atoi(t);
+						d->time[4] = t[0];
+						d->time[5] = t[1];
 						break;
 					case 6:
 						d->tz = atoi(t);
