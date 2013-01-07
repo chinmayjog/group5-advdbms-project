@@ -153,9 +153,9 @@ int SysIndexEntry::fillBuffer(char *buffer)
 	for(i=0;i<len;i++)
 		remarksBuff[i]=_remarks[i];
 
-	memcpy(&buffer[SYSINDINDEXNAMEPTR],indexNameBuff,64);
-	memcpy(&buffer[SYSINDDBNAMEPTR],dbNameBuff,64);
-	memcpy(&buffer[SYSINDTABLENAMEPTR],tabNameBuff,64);
+	memcpy(&buffer[SYSINDINDEXNAMEPTR],indexNameBuff,64*sizeof(char));
+	memcpy(&buffer[SYSINDDBNAMEPTR],dbNameBuff,64*sizeof(char));
+	memcpy(&buffer[SYSINDTABLENAMEPTR],tabNameBuff,64*sizeof(char));
 	memcpy(&buffer[SYSINDUNIQRULEPTR],&_uniqueRule,sizeof(char));
 	memcpy(&buffer[SYSINDCOLCOUNTPTR],&_colCount,sizeof(short));
 	memcpy(&buffer[SYSINDFANOUTNOPTR],&_fanOutNo,sizeof(short));
@@ -163,7 +163,7 @@ int SysIndexEntry::fillBuffer(char *buffer)
 	memcpy(&buffer[SYSINDPAGESIZEPTR],&_pageSize,sizeof(int));
 	memcpy(&buffer[SYSINDERASERULEPTR],&_eraseRule,sizeof(char));
 	memcpy(&buffer[SYSINDCLOSERULEPTR],&_closeRule,sizeof(char));
-	memcpy(&buffer[SYSINDREMARKSPTR],remarksBuff,256);
+	memcpy(&buffer[SYSINDREMARKSPTR],remarksBuff,256*sizeof(char));
 	memcpy(&buffer[SYSINDAVGKEYLENGTHPTR],&_avgKeyLength,sizeof(int));
 
 	delete tabNameBuff;
@@ -179,9 +179,9 @@ int SysIndexEntry::getDataBuffer(char *buffer)
 	char * indexNameBuff = new char [64];
 	char * remarksBuff = new char [256];
 
-	memcpy(indexNameBuff,&buffer[SYSINDINDEXNAMEPTR],64);
-	memcpy(dbNameBuff,&buffer[SYSINDDBNAMEPTR],64);
-	memcpy(tabNameBuff,&buffer[SYSINDTABLENAMEPTR],64);
+	memcpy(indexNameBuff,&buffer[SYSINDINDEXNAMEPTR],64*sizeof(char));
+	memcpy(dbNameBuff,&buffer[SYSINDDBNAMEPTR],64*sizeof(char));
+	memcpy(tabNameBuff,&buffer[SYSINDTABLENAMEPTR],64*sizeof(char));
 	memcpy(&_uniqueRule,&buffer[SYSINDUNIQRULEPTR],sizeof(char));
 	memcpy(&_colCount,&buffer[SYSINDCOLCOUNTPTR],sizeof(short));
 	memcpy(&_fanOutNo,&buffer[SYSINDFANOUTNOPTR],sizeof(short));
@@ -189,7 +189,7 @@ int SysIndexEntry::getDataBuffer(char *buffer)
 	memcpy(&_pageSize,&buffer[SYSINDPAGESIZEPTR],sizeof(int));
 	memcpy(&_eraseRule,&buffer[SYSINDERASERULEPTR],sizeof(char));
 	memcpy(&_closeRule,&buffer[SYSINDCLOSERULEPTR],sizeof(char));
-	memcpy(remarksBuff,&buffer[SYSINDREMARKSPTR],256);
+	memcpy(remarksBuff,&buffer[SYSINDREMARKSPTR],256*sizeof(char));
 	memcpy(&_avgKeyLength,&buffer[SYSINDAVGKEYLENGTHPTR],sizeof(int));
 
 	_indexName = "";
@@ -382,7 +382,7 @@ int SysIndex::deleteSysIndexEntry(string indexName,char *sysIndexBuff)
 
 		char * idxName = new char [64];
 
-		memcpy(idxName,&newEntryBuff[SYSINDINDEXNAMEPTR],64);
+		memcpy(idxName,&newEntryBuff[SYSINDINDEXNAMEPTR],64*sizeof(char));
 
 		string entryIndexName;
 		for(int j=0;j<64;j++)
@@ -401,6 +401,71 @@ int SysIndex::deleteSysIndexEntry(string indexName,char *sysIndexBuff)
 			break;
 		}
 		delete idxName;
+		delete newEntryBuff;
+	}
+
+	if(found == 0)
+	{
+		cout<<"Index not found... Continue searching..."<<endl;
+		return -1;// Entry not found
+	}
+
+	alreadyDeleted = '0';
+	memcpy(&sysIndexBuff[FIRSTSYSINDSLOTPTR-(i*SYSINDSLOTSIZE)],&alreadyDeleted,SYSINDSLOTSIZE);
+	return i+1; // SysIndexEntry found Deleted at (i+1)th Slot
+}
+
+int SysIndex::deleteSysIndexEntry(string indexName,string tableName,char *sysIndexBuff)
+{
+	bool found = 0;
+	int entryID,i;
+	char alreadyDeleted;
+
+	for(i = 0;i<_noOfEntries;i++)
+	{
+		memcpy(&alreadyDeleted,&sysIndexBuff[FIRSTSYSINDSLOTPTR-(i*SYSINDSLOTSIZE)],SYSINDSLOTSIZE);
+
+		if(alreadyDeleted == '0')
+		{
+			cout<<"The entry is deleted... Don't search there.....";
+			continue;
+		}
+
+		char * newEntryBuff = new char [SYSINDEXENTRYSIZE];
+
+		memcpy(newEntryBuff,&sysIndexBuff[0+(i*SYSINDEXENTRYSIZE)],SYSINDEXENTRYSIZE);
+
+		char * idxName = new char [64];
+		char * tabName = new char [64];
+
+		memcpy(idxName,&newEntryBuff[SYSINDINDEXNAMEPTR],64*sizeof(char));
+		memcpy(tabName,&newEntryBuff[SYSINDTABLENAMEPTR],64*sizeof(char));
+
+		string entryIndexName,entryTableName;
+		for(int j=0;j<64;j++)
+		{
+			if(idxName[j] == '$')
+				break;
+			entryIndexName = entryIndexName+idxName[j];
+		}
+		for(int j=0;j<64;j++)
+		{
+			if(tabName[j] == '$')
+				break;
+			entryTableName = entryTableName+tabName[j];
+		}
+
+		if(indexName == entryIndexName && entryTableName == tableName)
+		{
+			found = 1;
+			entryID = i;
+			delete idxName;
+			delete tabName;
+			delete newEntryBuff;
+			break;
+		}
+		delete idxName;
+		delete tabName;
 		delete newEntryBuff;
 	}
 
@@ -437,7 +502,7 @@ int SysIndex::searchSysIndexEntry(string indexName,char *sysIndexBuff)
 
 		char * idxName = new char [64];
 
-		memcpy(idxName,&newEntryBuff[SYSINDINDEXNAMEPTR],64);
+		memcpy(idxName,&newEntryBuff[SYSINDINDEXNAMEPTR],64*sizeof(char));
 
 		string entryIndexName;
 		for(int j=0;j<64;j++)
@@ -456,6 +521,69 @@ int SysIndex::searchSysIndexEntry(string indexName,char *sysIndexBuff)
 			break;
 		}
 		delete idxName;
+		delete newEntryBuff;
+	}
+
+	if(found == 0)
+	{
+		cout<<"Index not found... Continue searching..."<<endl;
+		return -1;// Entry not found
+	}
+
+	return i+1; // SysIndexEntry found at (i+1)th Slot
+}
+
+int SysIndex::searchSysIndexEntry(string indexName,string tableName,char *sysIndexBuff)
+{
+	bool found = 0;
+	int entryID,i;
+	char alreadyDeleted;
+
+	for(i = 0;i<_noOfEntries;i++)
+	{
+		memcpy(&alreadyDeleted,&sysIndexBuff[FIRSTSYSINDSLOTPTR-(i*SYSINDSLOTSIZE)],SYSINDSLOTSIZE);
+
+		if(alreadyDeleted == '0')
+		{
+			cout<<"The entry is deleted... Don't search there.....";
+			continue;
+		}
+
+		char * newEntryBuff = new char [SYSINDEXENTRYSIZE];
+
+		memcpy(newEntryBuff,&sysIndexBuff[0+(i*SYSINDEXENTRYSIZE)],SYSINDEXENTRYSIZE);
+
+		char * idxName = new char [64];
+		char * tabName = new char [64];
+
+		memcpy(idxName,&newEntryBuff[SYSINDINDEXNAMEPTR],64*sizeof(char));
+		memcpy(tabName,&newEntryBuff[SYSINDTABLENAMEPTR],64*sizeof(char));
+
+		string entryIndexName,entryTableName;
+		for(int j=0;j<64;j++)
+		{
+			if(idxName[j] == '$')
+				break;
+			entryIndexName = entryIndexName+idxName[j];
+		}
+		for(int j=0;j<64;j++)
+		{
+			if(tabName[j] == '$')
+				break;
+			entryTableName = entryTableName+tabName[j];
+		}
+
+		if(indexName == entryIndexName && entryTableName == tableName)
+		{
+			found = 1;
+			entryID = i;
+			delete idxName;
+			delete tabName;
+			delete newEntryBuff;
+			break;
+		}
+		delete idxName;
+		delete tabName;
 		delete newEntryBuff;
 	}
 

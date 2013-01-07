@@ -21,9 +21,9 @@
 #define SYSINDSLOTSIZE (sizeof(char))
 
 #define SYSINDINDEXNAMEPTR 0
-#define SYSINDDBNAMEPTR (SYSINDINDEXNAMEPTR+64)
-#define SYSINDTABLENAMEPTR (SYSINDDBNAMEPTR+64)
-#define SYSINDUNIQRULEPTR (SYSINDTABLENAMEPTR+64)
+#define SYSINDDBNAMEPTR (SYSINDINDEXNAMEPTR+64*sizeof(char))
+#define SYSINDTABLENAMEPTR (SYSINDDBNAMEPTR+64*sizeof(char))
+#define SYSINDUNIQRULEPTR (SYSINDTABLENAMEPTR+64*sizeof(char))
 #define SYSINDCOLCOUNTPTR (SYSINDUNIQRULEPTR+sizeof(char))
 #define SYSINDFANOUTNOPTR (SYSINDCOLCOUNTPTR+sizeof(short))
 #define SYSINDINDEXPAGEIDPTR (SYSINDFANOUTNOPTR+sizeof(short))
@@ -31,7 +31,7 @@
 #define SYSINDERASERULEPTR (SYSINDPAGESIZEPTR+sizeof(int))
 #define SYSINDCLOSERULEPTR (SYSINDERASERULEPTR+sizeof(char))
 #define SYSINDREMARKSPTR (SYSINDCLOSERULEPTR+sizeof(char))
-#define SYSINDAVGKEYLENGTHPTR (SYSINDREMARKSPTR+256)
+#define SYSINDAVGKEYLENGTHPTR (SYSINDREMARKSPTR+256*sizeof(char))
 
 using namespace std;
 
@@ -203,7 +203,9 @@ class SysIndex
 		bool checkEntryInsertion();
 		int createNewSysIndexEntry(char *entryBuff,char *sysIndexBuff);
 		int deleteSysIndexEntry(string indexName,char *sysIndexBuff);
+		int deleteSysIndexEntry(string indexName,string tableName,char *sysIndexBuff);
 		int searchSysIndexEntry(string indexName,char *sysIndexBuff);
+		int searchSysIndexEntry(string indexName,string tableName,char *sysIndexBuff);
 
 		void writeSysIndexBuffer(char *buffer);
 };
