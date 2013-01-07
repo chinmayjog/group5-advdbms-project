@@ -35,7 +35,7 @@ typedef struct insertionStruct{
 	char type[20];
 	long i;
 	double f;
-	char str[40];
+	char str[64];
 	dateStruct *d;
 }insertStruct;
 
