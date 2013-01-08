@@ -27,6 +27,10 @@ typedef struct indexQuery
 	char dataType[8];
 	int charLength;
 
+	int fanOut;
+	bool fanOutChanged;
+	int newFanOut;
+
 	DB * curDB;
 
 	bool resultFlag;
