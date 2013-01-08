@@ -104,6 +104,7 @@ int BufferManager::findPageInCache(int fdID, int pgNo){
 } 
 
 void BufferManager::setPageSize(int pageSizeInBytes){
+	closeAll();
 	pageSize = pageSizeInBytes;
 	sizeofbuffer = sizeofheader + pageSize;
 }
