@@ -664,6 +664,63 @@ short retDataTypeID(char *dataType)
 	}
 }
 
+short retDataTypeSize(short dataTypeID,short length)
+{
+	switch(dataTypeID)
+	{
+		case 1: return sizeof(int);
+			break;
+		case 2: return sizeof(float);
+			break;
+		case 3: return sizeof(char)*length;
+			break;
+		case 4: return sizeof(double);
+			break;
+		case 5: return sizeof(char)*length;
+			break;
+		case 6: return sizeof(short);
+			break;
+		case 7: return sizeof(long);
+			break;
+		case 8: return sizeof(unsigned int);
+			break;
+		case 9: return sizeof(unsigned short);
+			break;
+		case 10: return sizeof(unsigned long);
+			 break;
+		case 11: return 8*sizeof(char);
+			 break;
+		case 12: return 6*sizeof(char);
+			 break;
+		case 13: return 14*sizeof(char);
+			 break;
+		default: return -1;
+			 break;
+	}
+}
+
+int stringConversion(string String,char *charString)
+{
+	int length = String.length();
+
+	for(int i = 0;i<length;i++)
+	{
+		charString[i] = String[i];
+	}
+	return length;
+}
+
+string charArrayConversion(char *charString,int length)
+{
+	int i;
+	string retString;
+	for(i=0;i<length;i++)
+	{
+		retString = retString+charString[i];
+	}
+	return retString;
+}
+
 int dataCompare(char * data1,char * data2,short dataType)
 {
 	if(dataType == 1)
@@ -817,4 +874,97 @@ int dataCompare(char * data1,char * data2,short dataType)
 		// Not implemented yet.....
 		return -20;
 	}
+}
+
+string getDefaultValue(short dataTypeID,int charLength)
+{
+	int defInt = 0;
+	float defFloat = 0.0;
+	char defChar = '\0';
+	double defDouble = 0.0;
+	short defShort = 0;
+	long defLong = 0L;
+	unsigned int defUInt = 0;
+	unsigned short defUShort = 0;
+	unsigned long defULong = 0L;
+	Date defDate;
+	Time defTime;
+	DateTime defDateTime;
+	string retString;
+	char retChar[256];
+	int i;
+	for(i=0;i<256;i++)
+		retChar[i] = '$';
+	char dateBuffer[8];
+	char timeBuffer[6];
+	char dateTimeBuffer[14];
+	switch(dataTypeID)
+	{
+		case 1: memcpy(retChar,&defInt,sizeof(int));
+			break;
+		case 2: memcpy(retChar,&defFloat,sizeof(float));
+			break;
+		case 3: for(i=0;i<charLength;i++)
+				retChar[i] = defChar;
+			break;
+		case 4: memcpy(retChar,&defDouble,sizeof(int));
+			break;
+		case 5: for(i=0;i<charLength;i++)
+				retChar[i] = defChar;
+			break;
+		case 6: memcpy(retChar,&defShort,sizeof(short));
+			break;
+		case 7: memcpy(retChar,&defLong,sizeof(long));
+			break;
+		case 8: memcpy(retChar,&defUInt,sizeof(unsigned int));
+			break;
+		case 9: memcpy(retChar,&defUShort,sizeof(unsigned short));
+			break;
+		case 10: memcpy(retChar,&defULong,sizeof(unsigned long));
+			 break;
+		case 11: defDate.fillBuffer(dateBuffer);
+			 for(i=0;i<8;i++)
+				retChar[i] = dateBuffer[i];
+			 break;
+		case 12: defTime.fillBuffer(timeBuffer);
+			 for(i=0;i<6;i++)
+				retChar[i] = timeBuffer[i];
+			 break;
+		case 13: defDateTime.fillBuffer(dateTimeBuffer);
+			 for(i=0;i<14;i++)
+				retChar[i] = dateTimeBuffer[i];
+			 break;
+		case 14: // Not implemented
+			 break;
+		case 15: // Not implemented
+			 break;
+	}
+
+	for(i=0;i<256;i++)
+		retString = retString+retChar[i];
+	return retString;
+}
+
+void fillDefaultValue(char *defValue,int valueLength)
+{
+	//string retString;
+	char retChar[256];
+	int i;
+	for(i=0;i<256;i++)
+		retChar[i] = '$';
+	memcpy(retChar,defValue,valueLength);
+	//return retString;
+}
+
+int getDefaultValue(string defaultValue,char *defValue,int valueLength,short dataType)
+{
+	int retValueLength = 0,i;
+	for(i=0;i<valueLength;i++)
+	{
+		if(defaultValue[i] == '$')
+			break;
+		defValue[i] = defaultValue[i];
+		retValueLength++;
+	}
+	return retValueLength;
 }
