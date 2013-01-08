@@ -27,4 +27,5 @@
 #endif
 #ifndef globalF
 #define DPSLOTSIZE (sizeof(long)+sizeof(int))
+#include"errornumsDBEngine.h"
 #endif
