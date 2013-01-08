@@ -243,8 +243,10 @@ class SysColumns
 		bool checkEntryInsertion();
 		int createNewSysColumnEntry(char *entryBuffer,char * sysColumnBuffer);
 		int searchSysColumnEntry(string columnName,char * sysColumnBuffer);
+		int searchSysColumnEntry(string columnName,string tableName,char * sysColumnBuffer);
 		int searchSysColumnEntry(string columnName,string tableName,string dbName,string dataType,char * sysColumnBuffer);
 		// Check if I can write it as a list of SysColumnEntry objects instead of passing the buffer around.......
 		int deleteSysColumnEntry(string columnName,char * sysColumnBuffer);
+		int deleteSysColumnEntry(string columnName,string tableName,char * sysColumnBuffer);
 		int deleteSysColumnEntry(string columnName,string tableName,string dbName,string dataType,char * sysColumnBuffer);
 };
