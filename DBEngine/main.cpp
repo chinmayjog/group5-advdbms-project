@@ -18,6 +18,36 @@ void databaseFunction(int choice)
 				q->dbname[i] = dbName[i];
 			q->dbname[i] = '\0';
 			result = newdb->createDB(q);
+			if(result > 0)
+				cout<<"Database "<<dbName<<" created."<<endl;
+			else
+				cout<<"CreateDB error: "<<result;
+			break;
+		case 2: // Testing use database here
+			cout<<"\n Enter the name of the database: ";
+			cin>>dbName;
+			for(i=0;i<dbName.length();i++)
+				q->dbname[i] = dbName[i];
+			q->dbname[i] = '\0';
+			result = newdb->useDB(q);
+			if(result > 0)
+				cout<<"Database "<<dbName<<" loaded."<<endl;
+			else
+				cout<<"UseDB error: "<<result;
+			break;
+		case 3: // Testing drop database here
+			cout<<"\n Enter the name of the database: ";
+			cin>>dbName;
+			for(i=0;i<dbName.length();i++)
+				q->dbname[i] = dbName[i];
+			q->dbname[i] = '\0';
+			result = newdb->useDB(q);
+			if(result > 0)
+				cout<<"Database "<<dbName<<" dropped."<<endl;
+			else
+				cout<<"DropDB error: "<<result;
+			break;
+		case 4: // Testing create table here
 			break;
 		case 10: cout<<"\n Exiting the database";
 			// Call Chinmay's code for flushing the cache....
