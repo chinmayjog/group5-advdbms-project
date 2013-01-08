@@ -48,13 +48,25 @@ limit						return LIMIT;
 "group by"    				return GROUP;
 having          			return HAVING;
 "order by"    				return ORDER;
-"char" 						return CHAR;
-"varchar"					return VARCHAR;
+char 						{strcpy(yylval.id, "CHAR$$$$"); return CHAR;}
+varchar						{strcpy(yylval.id, "VARCHAR$"); return VARCHAR;}
+int							{strcpy(yylval.id, "INT$$$$$"); return DATATYPE;}
+bigint						{strcpy(yylval.id, "BIGINT$$"); return DATATYPE;}
+ubig						{strcpy(yylval.id, "UBIG$$$$"); return DATATYPE;}						
+uint						{strcpy(yylval.id, "UINT$$$$"); return DATATYPE;}
+smallint					{strcpy(yylval.id, "SMALLINT"); return DATATYPE;}
+usmall						{strcpy(yylval.id, "USMALL$$"); return DATATYPE;}
+float						{strcpy(yylval.id, "FLOAT$$$"); return DATATYPE;}
+double						{strcpy(yylval.id, "DOUBLE$$"); return DATATYPE;}
+date						{strcpy(yylval.id, "DATE$$$$"); return DATATYPE;}
+time						{strcpy(yylval.id, "TIME$$$$"); return DATATYPE;}
+datetime					{strcpy(yylval.id, "DATETIME"); return DATATYPE;}
+null						{strcpy(yylval.id, "#####"); return NULLTYPE;}
 or                 			return OR;
 and               			return AND;
 in							return IN;
-[-]?{digit}{digit}*			{yylval.integer = atol(yytext); return INTNUM;}
-[-]?{digit}+"."{digit}*		{yylval.flt = atof(yytext); return DBLNUM;}
+[-]?{digit}{digit}*			{strcpy(yylval.id, yytext); return INTNUM;}
+[-]?{digit}+"."{digit}*		{strcpy(yylval.id, yytext); return DBLNUM;}
 {alpha}({alpha}|{digit})* 	{strcpy(yylval.id, yytext); return ID;}
 {digit}{digit}"/"{digit}{digit}"/"{digit}{digit}{digit}{digit}" "{hour}{digit}":"{minsec}{digit}":"{minsec}{digit} {strcpy(yylval.datetm, yytext); return DATETIME;}
 {digit}{digit}"/"{digit}{digit}"/"{digit}{digit}{digit}{digit}  {strcpy(yylval.datetm, yytext); return DATE;}

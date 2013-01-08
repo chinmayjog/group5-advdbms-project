@@ -72,9 +72,6 @@ int main( int argc, char *argv[] ) {
 				for(int i = q->cntColumns -1; i>= 0; i--)
 				{
 					cout<<(q->ins[i]).colname<<endl;
-					cout<<(q->ins[i]).type<<endl;
-					cout<<(q->ins[i]).i<<endl;
-					cout<<(q->ins[i]).f<<endl;
 					cout<<(q->ins[i]).str<<endl;
 				}
 				if(!strcmp(q->type, "SELECT") || !strcmp(q->type, "DELETE")  || !strcmp(q->type, "UPDATE"))
