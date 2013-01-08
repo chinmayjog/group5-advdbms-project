@@ -1261,7 +1261,7 @@ int DB::useDB(query q)
 	char * dbBuff = new char [pageSize];
 	short priority = 3,dirPagePriority = 1;
 	bool retReadDB;
-	retReadDB = (*bu).readDB(fdID,0,(PagePriority)(priority),dbBuff);
+	retReadDB = (*bu).readDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbBuff);
 	if(retReadDB == false)
 	{
 		// Unable to write the buffer
@@ -1273,7 +1273,7 @@ int DB::useDB(query q)
 
 	// Reading all the SysTable pages
 	char * sysTabBuff = new char [pageSize];
-	int nextPTR = 1,curPTR = -1;
+	int nextPTR = _sysTablesPTR,curPTR = -1;
 	while(nextPTR != -1)
 	{
 		retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(priority),sysTabBuff);
@@ -1327,7 +1327,7 @@ int DB::useDB(query q)
 
 	// Read all the SysColumn pages
 	char * sysColBuff = new char [pageSize];
-	nextPTR = 2,curPTR = -1;
+	nextPTR = _sysColumnsPTR,curPTR = -1;
 
 	while(nextPTR != -1)
 	{
@@ -1345,7 +1345,7 @@ int DB::useDB(query q)
 
 	// Read all the SysIndex Pages
 	char * sysIndexBuff = new char [pageSize];
-	nextPTR = 3,curPTR = -1;
+	nextPTR = _sysIndexPTR,curPTR = -1;
 
 	while(nextPTR != -1)
 	{
@@ -1378,7 +1378,7 @@ int DB::dropDB(query q)
 	char * dbBuff = new char [pageSize];
 	short priority = 3,dirPagePriority = 1;
 	bool retReadDB;
-	retReadDB = (*bu).readDB(fdID,0,(PagePriority)(priority),dbBuff);
+	retReadDB = (*bu).readDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbBuff);
 	if(retReadDB == false)
 	{
 		// Unable to write the buffer
@@ -1455,7 +1455,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 	char * dbheaderBuff = new char [_pageSize];
 	short priority = 3;
 	bool retReadDB;
-	retReadDB = (*bu).readDB(fdID,0,(PagePriority)(priority),dbheaderBuff);
+	retReadDB = (*bu).readDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbheaderBuff);
 	if(retReadDB == false)
 	{
 		// Unable to write the buffer
@@ -1519,7 +1519,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 			colIndex = i;
 			keyColumns=1;
 		}
-		if(strcmp((q->columns[i]).type,"VARCHAR$")==0 || strcmp((q->columns[i]).type,"CHAR$$$$")==0)
+		if(strncmp((q->columns[i]).type,"VARCHAR$",8)==0 || strncmp((q->columns[i]).type,"CHAR$$$$",8)==0)
 		{
 			charLength = (q->columns[i]).sizeofField1; // length of the character or varchar
 			short dataTypeID = retDataTypeID((q->columns[i]).type);
@@ -1577,7 +1577,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 		string col_default;
 		int curRecordLength=0,curDataLength = 0;
 		// get the default value for the column, if default is not set, get the default values from DataTypes.cpp file
-		if(strcmp((q->columns[i]).type,"VARCHAR$")==0 || strcmp((q->columns[i]).type,"CHAR$$$$")==0)
+		if(strncmp((q->columns[i]).type,"VARCHAR$",8)==0 || strncmp((q->columns[i]).type,"CHAR$$$$",8)==0)
 		{
 			col_default = getDefaultValue(dataType,(q->columns[i]).sizeofField1);
 		}
@@ -1587,7 +1587,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 		}
 
 		// Getting the Record length
-		if(strcmp((q->columns[i]).type,"VARCHAR$")==0 || strcmp((q->columns[i]).type,"CHAR$$$$")==0)
+		if(strncmp((q->columns[i]).type,"VARCHAR$",8)==0 || strncmp((q->columns[i]).type,"CHAR$$$$",8)==0)
 		{
 			charLength = (q->columns[i]).sizeofField1; // length of the character or varchar
 			short dataTypeID = retDataTypeID((q->columns[i]).type);
