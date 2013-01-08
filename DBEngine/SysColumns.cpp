@@ -779,6 +779,75 @@ int SysColumns::deleteSysColumnEntry(string columnName,char * sysColumnBuffer)
 	return i+1; // SysColumnEntry found Deleted at (i+1)th Slot
 }
 
+int SysColumns::deleteSysColumnEntry(string columnName,string tableName,char * sysColumnBuffer)
+{
+	// Subtract the pointer by SysColumnEntrysize
+	// Decrement the no. of SysColumnEntries
+
+	bool found = 0;
+	int entryID,i;
+	char alreadyDeleted;
+
+	for(i = 0;i<_noOfEntries;i++)
+	{
+		memcpy(&alreadyDeleted,&sysColumnBuffer[FIRSTSYSCOLSLOTPTR-(i*SYSCOLSLOTSIZE)],SYSCOLSLOTSIZE);
+
+		if(alreadyDeleted == '0')
+		{
+			cout<<"The entry is deleted... Don't search there.....";
+			continue;
+		}
+
+		char * newEntryBuff = new char [SYSCOLUMNENTRYSIZE];
+
+		memcpy(newEntryBuff,&sysColumnBuffer[0+(i*SYSCOLUMNENTRYSIZE)],SYSCOLUMNENTRYSIZE);
+
+		char * colName = new char [64];
+		char * tabName = new char [64];
+		
+		memcpy(colName,&newEntryBuff[SYSCOLCOLNAMEPTR],64*sizeof(char));
+		memcpy(tabName,&newEntryBuff[SYSCOLTABLENAMEPTR],64*sizeof(char));
+		
+		string entryColumnName,entryTableName;
+		for(int j=0;j<64;j++)
+		{
+			if(colName[j] == '$')
+				break;
+			entryColumnName = entryColumnName+colName[j];
+		}
+		for(int j=0;j<64;j++)
+		{
+			if(tabName[j] == '$')
+				break;
+			entryTableName = entryTableName+tabName[j];
+		}
+		
+		if(columnName == entryColumnName && entryTableName == tableName)
+		{
+			found = 1;
+			entryID = i;
+			delete colName;
+			delete tabName;
+			delete newEntryBuff;
+			break;
+		}
+
+		delete colName;
+		delete tabName;
+		delete newEntryBuff;
+	}
+
+	if(found == 0)
+	{
+		cout<<"Column not found... Continue searching..."<<endl;
+		return -1;// Entry not found
+	}
+
+	alreadyDeleted = '0';
+	memcpy(&sysColumnBuffer[FIRSTSYSCOLSLOTPTR-(i*SYSCOLSLOTSIZE)],&alreadyDeleted,SYSCOLSLOTSIZE);
+	return i+1; // SysColumnEntry found Deleted at (i+1)th Slot
+}
+
 int SysColumns::deleteSysColumnEntry(string columnName,string tableName,string dbName,string dataType,char * sysColumnBuffer)
 {
 	// Subtract the pointer by SysColumnEntrysize
@@ -924,6 +993,73 @@ int SysColumns::searchSysColumnEntry(string columnName,char * sysColumnBuffer)
 	return i+1; // SysColumnEntry found at (i+1)th Slot
 }
 
+int SysColumns::searchSysColumnEntry(string columnName,string tableName,char * sysColumnBuffer)
+{
+	// Subtract the pointer by SysColumnEntrysize
+	// Decrement the no. of SysColumnEntries
+
+	bool found = 0;
+	int entryID,i;
+	char alreadyDeleted;
+
+	for(i = 0;i<_noOfEntries;i++)
+	{
+		memcpy(&alreadyDeleted,&sysColumnBuffer[FIRSTSYSCOLSLOTPTR-(i*SYSCOLSLOTSIZE)],SYSCOLSLOTSIZE);
+
+		if(alreadyDeleted == '0')
+		{
+			cout<<"The entry is deleted... Don't search there.....";
+			continue;
+		}
+
+		char * newEntryBuff = new char [SYSCOLUMNENTRYSIZE];
+
+		memcpy(newEntryBuff,&sysColumnBuffer[0+(i*SYSCOLUMNENTRYSIZE)],SYSCOLUMNENTRYSIZE);
+
+		char * colName = new char [64];
+		char * tabName = new char [64];
+		
+		memcpy(colName,&newEntryBuff[SYSCOLCOLNAMEPTR],64*sizeof(char));
+		memcpy(tabName,&newEntryBuff[SYSCOLTABLENAMEPTR],64*sizeof(char));
+		
+		string entryColumnName,entryTableName;
+		for(int j=0;j<64;j++)
+		{
+			if(colName[j] == '$')
+				break;
+			entryColumnName = entryColumnName+colName[j];
+		}
+		for(int j=0;j<64;j++)
+		{
+			if(tabName[j] == '$')
+				break;
+			entryTableName = entryTableName+tabName[j];
+		}
+
+		if(columnName == entryColumnName && entryTableName == tableName)
+		{
+			found = 1;
+			entryID = i;
+			delete colName;
+			delete tabName;
+			delete newEntryBuff;
+			break;
+		}
+
+		delete colName;
+		delete tabName;
+		delete newEntryBuff;
+	}
+
+	if(found == 0)
+	{
+		cout<<"Column not found... Continue searching..."<<endl;
+		return -1;// Entry not found
+	}
+
+	return i+1; // SysColumnEntry found at (i+1)th Slot
+}
+
 int SysColumns::searchSysColumnEntry(string columnName,string tableName,string dbName,string dataType,char * sysColumnBuffer)
 {
 	// Subtract the pointer by SysColumnEntrysize
@@ -1008,5 +1144,5 @@ int SysColumns::searchSysColumnEntry(string columnName,string tableName,string d
 		return -1;// Entry not found
 	}
 
-	return i+1; // SysColumnEntry found Deleted at (i+1)th Slot
+	return i+1; // SysColumnEntry found at (i+1)th Slot
 }
