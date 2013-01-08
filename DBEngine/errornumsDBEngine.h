@@ -53,3 +53,18 @@
 
 #define EXTENDFREESPACEERROR -2018
 //-2018 = "Extend Free Space: Free Space not available. Additional storage could not be allocated."
+
+#define SYSTABLEENTRYCREATEERROR -2019
+//-2019 = "Create Table: SysTable Entry create failure"
+
+#define SYSCOLUMNENTRYCREATEERROR -2020
+//-2020 = "Create Table: SysColumn Entry create failure"
+
+#define SYSINDEXENTRYCREATEERROR -2021
+//-2021 = "Create Table: SysIndex Entry create failure"
+
+#define DROPDBERROR -2022
+//-2022 = "Drop Database Error: Error in dropping the database"
+
+#define INSERTTABLETBLNOTFOUNDERROR -2023
+//-2023 = "Insert Table: Table not found"
