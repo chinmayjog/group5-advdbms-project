@@ -142,10 +142,14 @@ void BufferManager::printCacheHeaders(){
 		}
 	}
 	cout<<endl<<"Number of free cache pages: "<<freepoolcnt<<endl;
+	bool flag = true;
 	for(int i=0; i<numPages; i+=10){
-		cout<<endl;
-		cout<<setw(4)<<"  ID "<<setw(6)<<"   PgNo  "<<setw(1)<<" Dirty  "<<setw(3)<<"Hits  ";
-		cout<<setw(1)<<"PagePriority   "<<setw(1)<<"FD"<<endl;
+		if(flag){
+			cout<<endl;
+			cout<<setw(4)<<"  ID "<<setw(6)<<"   PgNo  "<<setw(1)<<" Dirty  "<<setw(3)<<"Hits  ";
+			cout<<setw(1)<<"PagePriority   "<<setw(1)<<"FD"<<endl;
+			flag = false;
+		}
 		int max = (numPages - i)>10?10:(numPages-i);
 		for(int j=i; j<i+max; j++){
 			if(pl[j].id != -1){
@@ -156,17 +160,23 @@ void BufferManager::printCacheHeaders(){
 				cout<<setw(1)<<((MemBuffer *)(bufferPool+(pl[j].id)*sizeofbuffer))->p_priority<<"              ";
 				cout<<setw(1)<<((MemBuffer *)(bufferPool+(pl[j].id)*sizeofbuffer))->mdtID<<"  ";
 				cout<<endl;
+				flag = true;
 			}
 		}
-		cout<<endl;
-		cin.clear();
-		cout<<"Press n to interrupt, any other key to continue"<<endl;
-		string c;
-		if(i==0)
-			getchar();
-		c=getchar();
-		if(c=="n")
-			break;
+		if(flag && i<numPages-1){
+			cout<<endl;
+			cin.clear();
+			cout<<"Press n to interrupt, any other key to continue"<<endl;
+			string c;
+			if(i==0)
+				getchar();
+			c=getchar();
+			if(c=="n"){
+				cout<<setfill(' ');
+				cout<<setbase(10);
+				break;
+			}
+		}
 	}
 }
 
@@ -198,8 +208,11 @@ void BufferManager::printHex(int buffId, int size){
 			if(i==0)
 				getchar();
 			c=getchar();
-			if(c=="n")
+			if(c=="n"){
+				cout<<setbase(10);
+				cout<<setfill(' ');
 				break;
+			}
 			cout<<"      ";
 			for(j=0;j<16;j++){
 				cout<<setfill('0')<<setw(2)<<setbase(16)<<(j)<<" ";
