@@ -6,10 +6,23 @@
 #include<fstream>
 #include<iomanip>
 #include<cstring>
+#include <vector>
 
 #include"globalDBEngine.h"
+#include"../cachemgr/src/BufferManager.h"
+#include"../parser/parser.h"
+#include"SysTables.h"
+#include"DBHeader.h"
+#include"SysColumns.h"
+#include"SysIndex.h"
+#include"FreeList.h"
+#include"dataDirectoryPage.h"
+#include"DataPage.h"
+#include"DataTypes.h"
 
 using namespace std;
+
+static int fdID;
 
 class DB
 {
@@ -21,17 +34,18 @@ class DB
 		 int _sysIndexPTR;
 		 int _noSysIndexPages;
 		 int _freePagePTR;
+		 int _lastFreePagePTR;
 		 int _noFreePages;
 		 int _pageSize;
 		 int _totSize;
 
 	public: DB()
 		{
-			_dbHeaderPTR = 1;
-			_sysTablesPTR = 2;
-			_sysColumnsPTR = 3;
-			_sysIndexPTR = 4;
-			_freePagePTR = 5;
+			_dbHeaderPTR = 0;
+			_sysTablesPTR = 1;
+			_sysColumnsPTR = 2;
+			_sysIndexPTR = 3;
+			_freePagePTR = 4;
 			_noSysTablePages = 1;
 			_noSysColumnPages = 1;
 			_noSysIndexPages = 1;
@@ -60,6 +74,8 @@ class DB
 		void setSysIndexPTR(int sysIndexPTR);
 		int getFreePagePTR();
 		void setFreePagePTR(int freePagePTR);
+		int getLastFreePagePTR();
+		void setLastFreePagePTR(int lastFreePagePTR);
 		int getNoSysTablePages();
 		void setNoSysTablePages(int noSysTablePages);
 		int getNoSysColumnPages();
@@ -69,36 +85,44 @@ class DB
 
 		// DB Queries
 
-		int createDB(int size,int pageSize,string dbName);
-		int useDB(string dbName);
-		int dropDB();
-		int createTable(/*Query Parameter Structure*/);
-		int dropTable();
-		int createIndex();
-		int dropIndex();
-		int insertEntry();
-		int deleteEntry();
-		int updateEntry();
-		int alterTable();
-		int selectEntry();
-		int showTables();
+		int createDB(query q);
+		int useDB(query q);
+		int dropDB(query q);
+		int createTable(/*Query Parameter Structure*/query q);
+		int dropTable(query q);
+		int createIndex(query q);
+		int dropIndex(query q);
+		int insertEntry(query q);
+		int deleteEntry(query q);
+		int updateEntry(query q);
+		int alterTable(query q);
+		int selectEntry(query q);
+		int showTables(query q);
 
 		// DB Maintenance methods
 
 		bool extendFreeSpaceCheck();
 		int extendFreeSpace();
-		int getFreePage();
-		int addFreePageList(int pageID);
-		int createNewSysTablesEntry();
-		int deleteSysTablesEntry();
-		int createNewSysColumnsEntry();
-		int deleteSysColumnsEntry();
-		int createNewSysIndexEntry();
-		int deleteSysIndexEntry();
+
+		int createNewSysTablesEntry(SysTableEntry newSysTableEntry);
+		int deleteSysTablesEntry(string tableName,string dbName);
+		int createNewSysColumnsEntry(SysColumnsEntry newSysColumnsEntry);
+		int deleteSysColumnsEntry(string _dbName,string _tableName,string _columnName,string _dataType);
+		int createNewSysIndexEntry(SysIndexEntry newSysIndexEntry);
+		int deleteSysIndexEntry(string indexName,string tableName);
+		int insertDataBaseEntry(int directoryPageID,char *dataBuffer);
 		int createNewSysTablesPage();
 		int createNewSysColumnsPage();
 		int createNewSysIndexPage();
+		int createNewDirectoryPage();
+		int createNewDataPage();
 		int deleteSysTablesPage(int pageID);
 		int deleteSysColumnsPage(int pageID);
 		int deleteSysIndexPage(int pageID);
+		int deleteDirectoryPage(int pageID);
+		int deleteDataPage(int pageID);
+
+		// Making these methods friends as Indexing also needs these function calls to get the Free page and to add the Free page
+		friend int getFreePage(DB * curDB);
+		friend int addFreePageList(DB * curDB,int pageID);
 };
