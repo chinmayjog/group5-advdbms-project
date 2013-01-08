@@ -33,8 +33,6 @@ typedef struct columnStruct{
 typedef struct insertionStruct{
 	char colname[64];
 	char type[20];
-	long i;
-	double f;
 	char str[64];
 	dateStruct *d;
 }insertStruct;
@@ -44,8 +42,6 @@ typedef struct conditionStruct{
 	conjunction cond;
 	char colname[64];
 	char rightstr[50][100];
-	int rightint[50];
-	float rightflt[50];
 	dateStruct *rightdttm[50];
 	optype lt, rt;
 	int rightcnt;
