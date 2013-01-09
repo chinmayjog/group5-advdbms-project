@@ -18,11 +18,6 @@ typedef struct columnStruct{
 	int sizeofField1;
 	int sizeofField2; //only for decfloat
 	dateStruct defaultdate;
-	short defaultshort;
-	int defaultint;
-	long defaultlong;
-	float defaultfloat;
-	double defaultdouble;
 	char defaultstring[257];
 	short isPrimary;
 	short isAutoIncrement;
@@ -57,7 +52,7 @@ void traverse(condition *node);
 
 typedef struct {
 	int error;
-    char type[8];
+    char type[20];
 	char dbname[64];
 	char index[64];
     char table[64];
