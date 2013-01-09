@@ -28,4 +28,5 @@
 #ifndef globalF
 #define DPSLOTSIZE (sizeof(long)+sizeof(int))
 #include"errornumsDBEngine.h"
+#define DEBUGFILENAME "../logs/DBEngine.log"
 #endif

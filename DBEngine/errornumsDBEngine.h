@@ -68,3 +68,33 @@
 
 #define INSERTTABLETBLNOTFOUNDERROR -2023
 //-2023 = "Insert Table: Table not found"
+
+#define INSERTTABLECOLNOTFOUNDERROR -2024
+//-2024 = "Insert Table: Column not found"
+
+#define INSERTTABLEDATANOTINSERTERROR -2025
+//-2025 = "Insert Table: Unable to insert the data"
+
+#define INSERTTABLEDATANULLINSERTERROR -2026
+//-2026 = "Insert Table: NULL value insertion not possible"
+
+#define INSERTTABLEDATABOUNDARYEXCEEDSERROR -2027
+//-2027 = "Insert Table: Boundary value exceeded error"
+
+#define SYSCOLUMNSAUTOINCREMENTERROR -2028
+//-2028 = "Insert Table: Auto Increment incompatible with other data types"
+
+#define EXTENDFREESPACEGETPAGECOUNTERROR -2029
+//-2029 = "Extend free space: Get page count error"
+
+#define INSERTDIRECTORYPAGEENTRY -2030
+//-2030 = "Insert Entry: Create new Directory Page Entry Error"
+
+#define CREATEDIRECTORYPAGEENTRY -2031
+//-2031 = "Create Directory Entry: Create new Directory Page Failed"
+
+#define DELETETABLETBLNOTFOUNDERROR -2032
+//-2032 = "Delete Table: Table not found"
+
+#define QUERYUNSUPPORTEDERROR -2033
+//-2033 = "Query unsupported or is wrong"
