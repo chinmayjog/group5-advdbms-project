@@ -48,6 +48,8 @@ DATETIME+/-TZ         15
 */
 
 #include"DataTypes.h"
+#include<climits>
+#include<cfloat>
 
 /*
 #include<iostream>
@@ -863,6 +865,125 @@ int dataCompare(char * data1,char * data2,short dataType)
 	{
 		DateTime d1(data1),d2(data2);
 		return d1.compare(d2);
+	}
+	else if(dataType == 14)
+	{
+		// Not implemented yet.....
+		return -20;
+	}
+	else if(dataType == 15)
+	{
+		// Not implemented yet.....
+		return -20;
+	}
+}
+
+int dataCheck(char * data1,int length,short dataType)
+{
+	if(dataType == 1)
+	{
+		int d1;
+		memcpy(&d1,data1,sizeof(int));
+		if(d1 > INT_MIN && d1 < INT_MAX)
+			return 1;
+		else
+			return -1;
+	}
+	else if(dataType == 2)
+	{
+		float d1;
+		memcpy(&d1,data1,sizeof(float));
+		if(d1 > FLT_MIN && d1 < FLT_MAX)
+			return 1;
+		else
+			return -1;
+	}
+	else if(dataType == 3)
+	{
+		for(int i=0;i<length;i++)
+		{
+			if(data1[i] < CHAR_MIN || data1[i] > CHAR_MAX)
+				return -1;
+		}
+		return 1;
+	}
+	else if(dataType == 4)
+	{
+		double d1;
+		memcpy(&d1,data1,sizeof(double));
+		if(d1 > DBL_MIN && d1 < DBL_MAX)
+			return 1;
+		else
+			return -1;
+	}
+	else if(dataType == 5)
+	{
+		for(int i=0;i<length;i++)
+		{
+			if(data1[i] < CHAR_MIN || data1[i] > CHAR_MAX)
+				return -1;
+		}
+		return 1;
+	}
+	else if(dataType == 6)
+	{
+		short d1;
+		memcpy(&d1,data1,sizeof(short));
+		if(d1 > SHRT_MIN && d1 < SHRT_MAX)
+			return 1;
+		else
+			return -1;
+	}
+	else if(dataType == 7)
+	{
+		long d1;
+		memcpy(&d1,data1,sizeof(long));
+		if(d1 > LONG_MIN && d1 < LONG_MAX)
+			return 1;
+		else
+			return -1;
+	}
+	else if(dataType == 8)
+	{
+		unsigned int d1;
+		memcpy(&d1,data1,sizeof(unsigned int));
+		if(d1 > -1 && d1 < UINT_MAX)
+			return 1;
+		else
+			return -1;
+	}
+	else if(dataType == 9)
+	{
+		unsigned short d1;
+		memcpy(&d1,data1,sizeof(unsigned short));
+		if(d1 > -1 && d1 < USHRT_MAX)
+			return 1;
+		else
+			return -1;
+	}
+	else if(dataType == 10)
+	{
+		unsigned long d1;
+		memcpy(&d1,data1,sizeof(unsigned long));
+		if(d1 > -1 && d1 < ULONG_MAX)
+			return 1;
+		else
+			return -1;
+	}
+	else if(dataType == 11)
+	{
+		Date d1(data1);
+		return d1.validateDate();
+	}
+	else if(dataType == 12)
+	{
+		Time d1(data1);
+		return d1.validateTime();
+	}
+	else if(dataType == 13)
+	{
+		DateTime d1(data1);
+		return d1.validateDateTime();
 	}
 	else if(dataType == 14)
 	{
