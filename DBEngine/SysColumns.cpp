@@ -993,6 +993,64 @@ int SysColumns::searchSysColumnEntry(string columnName,char * sysColumnBuffer)
 	return i+1; // SysColumnEntry found at (i+1)th Slot
 }
 
+int SysColumns::searchSysColumnEntry(int ordinalPosition,string tableName,char * sysColumnBuffer)
+{
+	// Same as delete function instead of marking the deleted flag, just return (i+1) position
+
+	bool found = 0;
+	int entryID,i;
+	char alreadyDeleted;
+
+	for(i = 0;i<_noOfEntries;i++)
+	{
+		memcpy(&alreadyDeleted,&sysColumnBuffer[FIRSTSYSCOLSLOTPTR-(i*SYSCOLSLOTSIZE)],SYSCOLSLOTSIZE);
+
+		if(alreadyDeleted == '0')
+		{
+			cout<<"The entry is deleted... Don't search there.....";
+			continue;
+		}
+
+		char * newEntryBuff = new char [SYSCOLUMNENTRYSIZE];
+
+		memcpy(newEntryBuff,&sysColumnBuffer[0+(i*SYSCOLUMNENTRYSIZE)],SYSCOLUMNENTRYSIZE);
+
+		char * tabName = new char [64];
+
+		memcpy(tabName,&newEntryBuff[SYSCOLTABLENAMEPTR],64*sizeof(char));
+
+		string entryTableName;
+		int entryOrdinalPosition;
+		for(int j=0;j<64;j++)
+		{
+			if(tabName[j] == '$')
+				break;
+			entryTableName = entryTableName+tabName[j];
+		}
+		memcpy(&entryOrdinalPosition,&newEntryBuff[SYSCOLORDPOSPTR],sizeof(int));
+
+		if(tableName == entryTableName && ordinalPosition == entryOrdinalPosition)
+		{
+			found = 1;
+			entryID = i;
+			delete tabName;
+			delete newEntryBuff;
+			break;
+		}
+
+		delete tabName;
+		delete newEntryBuff;
+	}
+
+	if(found == 0)
+	{
+		cout<<"Column not found... Continue searching..."<<endl;
+		return -1;// Entry not found
+	}
+
+	return i+1; // SysColumnEntry found at (i+1)th Slot
+}
+
 int SysColumns::searchSysColumnEntry(string columnName,string tableName,char * sysColumnBuffer)
 {
 	// Subtract the pointer by SysColumnEntrysize
