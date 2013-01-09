@@ -98,3 +98,9 @@
 
 #define QUERYUNSUPPORTEDERROR -2033
 //-2033 = "Query unsupported or is wrong"
+
+#define QUERYERROR -2034
+//-2034 = "Query is wrong. Multiple values has been specified"
+
+#define QUERYLENGTHERROR -2035
+//-2034 = "Query is wrong. Length of the specified string exceeds boundaries"

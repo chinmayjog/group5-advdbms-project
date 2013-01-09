@@ -10,6 +10,7 @@
 #include<climits>
 #include<cfloat>
 #include<cerrno>
+#include<stack>
 
 #include"globalDBEngine.h"
 #include"../cachemgr/src/BufferManager.h"
@@ -86,6 +87,12 @@ class DB
 		void setNoSysColumnPages(int noSysColumnPages);
 		int getNoSysIndexPages();
 		void setNoSysIndexPages(int noSysIndexPages);
+		int getPageSize();
+		void setPageSize(int pageSize);
+		int getTotSize();
+		void setTotSize(int totSize);
+		int getNoOfFreePages();
+		void setNoOfFreePages(int noOfFreePages);
 
 		// DB Queries
 
@@ -118,7 +125,9 @@ class DB
 		int createNewDirectoryPageEntry(int directoryPageID,int newDataPageID,int tfs,bool *noOfPagesChanged);
 		int insertDataBaseEntry(int directoryPageID,char *dataBuffer,bool *noOfPagesChanged);
 
-		bool queryEvaluate(query q,string * columnNames,string * dataTypes,int * ordinalPositions,short * scales,int * columnLengths);
+		int queryEvaluate(char * data,query q,string * columnNames,string * dataTypes,int * ordinalPositions,short * scales,int * columnLengths,bool *result);
+		int countNodes(condition * root);
+		int countLevels(condition * root);
 		bool indexUse(condition * rootTree,string tableName,int * indexPageID,int * indexID);
 
 		int createNewSysTablesPage();

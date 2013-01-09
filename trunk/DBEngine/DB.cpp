@@ -4,47 +4,6 @@
 #include"DB.h"
 //#include"FileHandling.cpp"
 
-/*class DB
-{
-	private: int _dbHeaderPTR;
-		 int _sysTablesPTR;
-		 int _noSysTablePages;
-		 int _sysColumnsPTR;
-		 int _noSysColumnPages;
-		 int _sysIndexPTR;
-		 int _noSysIndexPages;
-		 int _freePagePTR;
-		 int _noFreePages;
-		 int _pageSize;
-		 int _totSize;
-
-	public: DB()
-		{
-			_dbHeaderPTR = 1;
-			_sysTablesPTR = 2;
-			_sysColumnsPTR = 3;
-			_sysIndexPTR = 4;
-			_freePagePTR = 5;
-			_noSysTablePages = 1;
-			_noSysColumnPages = 1;
-			_noSysIndexPages = 1;
-			_pageSize = 2048;
-			_totSize = 100*1024*1024;
-			_noFreePages = (_totSize/_pageSize)-4;
-		}
-
-		~DB()
-		{
-			// Delete DB
-		}
-
-//		static DB * getDB()
-//		{
-//			return new DB();
-//		}
-};
-*/
-
 int DB::getDBHeaderPTR()
 {
 	return _dbHeaderPTR;
@@ -135,6 +94,34 @@ void DB::setNoSysIndexPages(int noSysIndexPages)
 	_noSysIndexPages = noSysIndexPages;
 }
 
+int DB::getPageSize()
+{
+	return _pageSize;
+}
+
+void DB::setPageSize(int pageSize)
+{
+	_pageSize = pageSize;
+}
+
+int DB::getTotSize()
+{
+	return _totSize;
+}
+void DB::setTotSize(int totSize)
+{
+	_totSize = totSize;
+}
+
+int DB::getNoOfFreePages()
+{
+	return _noFreePages;
+}
+void DB::setNoOfFreePages(int noOfFreePages)
+{
+	_noFreePages = noOfFreePages;
+}
+
 // DB Maintenance methods
 
 bool DB::extendFreeSpaceCheck()
@@ -209,38 +196,153 @@ int DB::extendFreeSpace()
 	}
 	_lastFreePagePTR = noOfPages+1024;
 	_totSize = _totSize + (1024*_pageSize);
+	char * dbBuff = new char [_pageSize];
+	short priority = 3,dirPagePriority = 1;
+	bool retReadDB,retWriteDB;
+	retReadDB = (*bu).readDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbBuff);
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		return DATABASEREADDBERROR;
+	}
+		
+	DBHeader * dbHeader = new DBHeader(dbBuff,_pageSize);
+	dbHeader->setFreePagePointer(_freePagePTR);
+	dbHeader->setNoFreePages(_noFreePages);
+	dbHeader->setSysTablesPointer(_sysTablesPTR);
+	dbHeader->setSysColumnsPointer(_sysColumnsPTR);
+	dbHeader->setSysIndexPointer(_sysIndexPTR);
+	dbHeader->setTotalDBSize(_totSize);
+	dbHeader->setTotalPages(_totSize/_pageSize);
+	dbHeader->writeDBHeader(dbBuff);
+		
+		
+	retWriteDB = (*bu).writeDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbBuff);
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		delete dbHeader;
+		return DATABASEWRITEDBERROR;
+	}
+	delete dbHeader;
+	delete dbBuff;
 	return _lastFreePagePTR;
 }
 
 int mainDB(DB * curDB,query q)
 {
 	string queryType = q->type;
+	int curPageSize = curDB->getPageSize();
+	BufferManager *bu = BufferManager::getBufferManager();
+	int cachePageSize = (*bu).getPageSize();
 	if(strcmp(queryType.c_str(),"CREATEDB") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			fdID = -1;
+		}
 		return curDB->createDB(q);
+	}
 	else if(strcmp(queryType.c_str(),"USEDB") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			fdID = -1;
+		}
 		return curDB->useDB(q);
+	}
 	else if(strcmp(queryType.c_str(),"DROPDB") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			fdID = -1;
+		}
 		return curDB->dropDB(q);
+	}
 	else if(strcmp(queryType.c_str(),"SHOWDB") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			fdID = -1;
+		}
 		return curDB->showDB(q);
+	}
 	else if(strcmp(queryType.c_str(),"SHOWTBL") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			fdID = -1;
+		}
 		return curDB->showTables(q);
+	}
 	else if(strcmp(queryType.c_str(),"CREATETBL") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
 		return curDB->createTable(q);
+	}
 	else if(strcmp(queryType.c_str(),"CREATEIND") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
 		return curDB->createIndex(q);
+	}
 	else if(strcmp(queryType.c_str(),"DROPIND") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
 		return curDB->dropIndex(q);
+	}
 	else if(strcmp(queryType.c_str(),"INSERT") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
 		return curDB->insertEntry(q);
+	}
 	else if(strcmp(queryType.c_str(),"DELETE") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
 		return curDB->deleteEntry(q);
+	}
 	else if(strcmp(queryType.c_str(),"UPDATE") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
 		return curDB->updateEntry(q);
+	}
 	else if(strcmp(queryType.c_str(),"SELECT") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
 		return curDB->selectEntry(q);
-	else if(strcmp(queryType.c_str(),"ALTER") == 0)
+	}
+	else if(strncmp(queryType.c_str(),"ALTER",5) == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
 		return curDB->selectEntry(q);
+	}
 	else
 	{
 		// Query is either not supported or is wrong
@@ -248,9 +350,328 @@ int mainDB(DB * curDB,query q)
 	}
 }
 
-bool DB::queryEvaluate(query q,string * columnNames,string * dataTypes,int * ordinalPositions,short * scales,int * columnLengths)
+int DB::queryEvaluate(char * data,query q,string * columnNames,string * dataTypes,int * ordinalPositions,short * scales,int * columnLengths,bool *result)
 {
+	condition * conditionTree = q->root;
+	int noOfNodes = countNodes(conditionTree);
+	int noOfLevels = countLevels(conditionTree);
+	char *dataType;
 
+	if(noOfNodes == 1)
+	{
+		// It has no AND and OR conditions
+		// Just operate left on right and send back the result.
+		string columnNameToCheck = q->root->colname;
+		int noOfRightNodes = q->root->rightcnt;
+		if(noOfRightNodes >= 1 && q->root->cond == INC)
+		{
+			// It is an IN Query
+			string * columnValueToCheck = new string [noOfRightNodes];
+			for(int k = 0;k<noOfRightNodes;k++)
+				columnValueToCheck[k] = q->root->rightstr[k];
+			int noOfColumns = sizeof(columnLengths)/sizeof(columnLengths[0]);
+			bool columnFound = false;
+			int sizeShort = sizeof(short);
+			int sumOffSet = 0;
+			for(int i=0;i<noOfColumns;i++)
+			{
+				short offset;
+				memcpy(&offset,&data[sumOffSet],sizeof(short));
+				if(columnNames[i] == columnNameToCheck)
+				{
+					columnFound = true;
+					int compareResult;
+					if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)==0)
+					{
+						int length;
+						memcpy(&length,&data[sumOffSet+sizeof(short)],sizeof(int));
+						char * currentColumnValue = new char [length];
+						memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)+sizeof(int)],length);
+						string currentValue = currentColumnValue;
+						dataType = (char *) dataTypes[i].c_str();
+						short dataTypeID = retDataTypeID(dataType);
+						for(int j = 0;j<noOfRightNodes;j++)
+						{
+							compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck[j].c_str(),dataTypeID);
+							if(compareResult == 0)
+								break;
+						}
+						delete currentColumnValue;
+						for(int j = 0;j<noOfRightNodes;j++)
+						{
+							if(currentValue.length() < columnValueToCheck[j].length())
+								return QUERYLENGTHERROR;
+						}
+						if(compareResult == 0)
+						{
+							*result = true;
+							return 1;
+						}
+						else
+						{
+							*result = false;
+							return 1;
+						}
+					}
+					else
+					{
+						char * currentColumnValue = new char [offset];
+						memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)],offset);
+						short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
+						string currentValue = currentColumnValue;
+						for(int j = 0;j<noOfRightNodes;j++)
+						{
+							compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck[j].c_str(),dataTypeID);
+							if(compareResult == 0)
+								break;
+						}
+						delete currentColumnValue;
+						if(strncmp(dataTypes[i].c_str(),"CHAR$$$$",8)==0)
+						{
+							for(int j = 0;j<noOfRightNodes;j++)
+							{
+								if(currentValue.length() < columnValueToCheck[j].length())
+									return QUERYLENGTHERROR;
+							}
+						}
+						if(compareResult == 0)
+						{
+							*result = true;
+							return 1;
+						}
+						else
+						{
+							*result = false;
+							return 1;
+						}
+					}
+				}
+			}
+			delete columnValueToCheck;
+		}
+		else if(q->root->cond == LIKEC)
+		{
+			string columnValueToCheck = q->root->rightstr[0];
+			int noOfColumns = sizeof(columnLengths)/sizeof(columnLengths[0]);
+			bool columnFound = false;
+			int sizeShort = sizeof(short);
+			int sumOffSet = 0;
+			for(int i=0;i<noOfColumns;i++)
+			{
+				short offset;
+				memcpy(&offset,&data[sumOffSet],sizeof(short));
+				if(columnNames[i] == columnNameToCheck)
+				{
+					columnFound = true;
+					int compareResult;
+					if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)!=0 || strncmp(dataTypes[i].c_str(),"CHAR$$$$",8)!=0)
+					{
+						return QUERYERROR;
+					}
+					if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)==0)
+					{
+						int length;
+						memcpy(&length,&data[sumOffSet+sizeof(short)],sizeof(int));
+						char * currentColumnValue = new char [length];
+						memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)+sizeof(int)],length);
+						short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
+						string d1 = currentColumnValue;
+						int l1 = d1.length();
+						int l2 = columnValueToCheck.length();
+						if(l1<l2)
+						{
+							delete currentColumnValue;
+							return QUERYLENGTHERROR;
+						}
+						delete currentColumnValue;
+						int findValue = d1.find(columnValueToCheck);
+						if(findValue != string::npos)
+						{
+							*result = true;
+							return 1;
+						}
+						else
+						{
+							*result = false;
+							return 1;
+						}
+					}
+					else
+					{
+						char * currentColumnValue = new char [offset];
+						memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)],offset);
+						short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
+						string d1 = currentColumnValue;
+						int l1 = d1.length();
+						int l2 = columnValueToCheck.length();
+						if(l1<l2)
+						{
+							delete currentColumnValue;
+							return QUERYLENGTHERROR;
+						}
+						delete currentColumnValue;
+						int findValue = d1.find(columnValueToCheck);
+						if(findValue != string::npos)
+						{
+							*result = true;
+							return 1;
+						}
+						else
+						{
+							*result = false;
+							return 1;
+						}
+					}
+				}
+				sumOffSet = sumOffSet+sizeof(short)+offset;
+			}
+		}
+		else
+		{
+			// It is not IN or LIKE query Only one value will be there
+			// If noOfRightNodes > 1 error
+			if(noOfRightNodes > 1)
+				return QUERYERROR;
+			string columnValueToCheck = q->root->rightstr[0];
+			int noOfColumns = sizeof(columnLengths)/sizeof(columnLengths[0]);
+			bool columnFound = false;
+			int sizeShort = sizeof(short);
+			int sumOffSet = 0;
+			for(int i=0;i<noOfColumns;i++)
+			{
+				short offset;
+				memcpy(&offset,&data[sumOffSet],sizeof(short));
+				if(columnNames[i] == columnNameToCheck)
+				{
+					columnFound = true;
+					int compareResult;
+					if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)==0)
+					{
+						int length;
+						memcpy(&length,&data[sumOffSet+sizeof(short)],sizeof(int));
+						char * currentColumnValue = new char [length];
+						memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)+sizeof(int)],length);
+						short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
+						string currentValue = currentColumnValue;
+						compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck.c_str(),dataTypeID);
+						delete currentColumnValue;
+						if(currentValue.length() < columnValueToCheck.length())
+							return QUERYLENGTHERROR;
+					}
+					else
+					{
+						char * currentColumnValue = new char [offset];
+						memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)],offset);
+						short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
+						string currentValue = currentColumnValue;
+						compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck.c_str(),dataTypeID);
+						delete currentColumnValue;
+						if(strncmp(dataTypes[i].c_str(),"CHAR$$$$",8)==0)
+						{
+							if(currentValue.length() < columnValueToCheck.length())
+								return QUERYLENGTHERROR;
+						}
+					}
+					if(q->root->cond == EQL)
+					{
+						if(compareResult == 0)
+						{
+							*result = true;
+							return 1;
+						}
+					}
+					else if(q->root->cond == NEQL)
+					{
+						if(compareResult != 0)
+						{
+							*result = true;
+							return 1;
+						}
+					}
+					else if(q->root->cond == LET)
+					{
+						if(compareResult < 0)
+						{
+							*result = true;
+							return 1;
+						}
+					}
+					else if(q->root->cond == LEQ)
+					{
+						if(compareResult <= 0)
+						{
+							*result = true;
+							return 1;
+						}
+					}
+					else if(q->root->cond == GRT)
+					{
+						if(compareResult > 0)
+						{
+							*result = true;
+							return 1;
+						}
+					}
+					else if(q->root->cond == GEQ)
+					{
+						if(compareResult >= 0)
+						{
+							*result = true;
+							return 1;
+						}
+					}
+				}
+				sumOffSet = sizeof(short)+offset;
+			}
+		}
+		return QUERYERROR;
+	}
+	else if(noOfNodes == 3)
+	{
+		// It is a 1 level tree, one AND or one OR and the variables
+		
+	}
+	else
+	{
+		// It has multiple AND and OR conditions
+		string * postFixQueryString = new string [noOfNodes];
+		stack<condition *> st;
+		st.push(conditionTree);
+		
+		{
+
+		}
+	}
+}
+
+int DB::countNodes(condition * root)
+{
+	if(root == NULL)
+		return 0;
+	else
+	{
+		if(root->lhs == NULL && root->rhs == NULL)
+			return 1; // Leaf node
+		else
+			return 1+countNodes(root->lhs)+countNodes(root->rhs);
+	}
+}
+
+int DB::countLevels(condition * root)
+{
+	int levels = 1;
+
+	if (root->lhs)
+	{
+		levels = max(levels,1+countLevels(root->lhs));
+	}
+
+	if (root->rhs)
+	{
+		levels = max(levels,1+countLevels(root->rhs));
+	}
+
+	return levels;
 }
 
 bool DB::indexUse(condition * rootTree,string tableName,int * indexPageID,int * indexID)
@@ -289,6 +710,41 @@ int getFreePage(DB * curDB)
 
 	curDB->_noFreePages--;
 
+	char * dbBuff = new char [_pageSize];
+	short dbhpriority = 3;
+	bool retWriteDB;
+	retReadDB = (*bu).readDB(fdID,curDB->_dbHeaderPTR,(PagePriority)(dbhpriority),dbBuff);
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		return DATABASEREADDBERROR;
+	}
+		
+	DBHeader * dbHeader = new DBHeader(dbBuff,curDB->_pageSize);
+	dbHeader->setFreePagePointer(curDB->_freePagePTR);
+	dbHeader->setNoFreePages(curDB->_noFreePages);
+	dbHeader->setSysTablesPointer(curDB->_sysTablesPTR);
+	dbHeader->setSysColumnsPointer(curDB->_sysColumnsPTR);
+	dbHeader->setSysIndexPointer(curDB->_sysIndexPTR);
+	dbHeader->setTotalDBSize(curDB->_totSize);
+	dbHeader->setTotalPages(curDB->_totSize/curDB->_pageSize);
+	dbHeader->writeDBHeader(dbBuff);
+		
+		
+	retWriteDB = (*bu).writeDB(fdID,curDB->_dbHeaderPTR,(PagePriority)(dbhpriority),dbBuff);
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		delete dbHeader;
+		return DATABASEWRITEDBERROR;
+	}
+	delete dbHeader;
+	delete dbBuff;
+
 	delete buffer;
 	return pageID;
 }
@@ -320,6 +776,41 @@ int addFreePageList(DB * curDB,int pageID)
 	}
 	curDB->_freePagePTR = pageID;
 	curDB->_noFreePages++;
+	char * dbBuff = new char [curDB->_pageSize];
+	short dbhpriority = 3,dirPagePriority = 1;
+	bool retReadDB;
+	retReadDB = (*bu).readDB(fdID,curDB->_dbHeaderPTR,(PagePriority)(dbhpriority),dbBuff);
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		return DATABASEREADDBERROR;
+	}
+		
+	DBHeader * dbHeader = new DBHeader(dbBuff,curDB->_pageSize);
+	dbHeader->setFreePagePointer(curDB->_freePagePTR);
+	dbHeader->setNoFreePages(curDB->_noFreePages);
+	dbHeader->setSysTablesPointer(curDB->_sysTablesPTR);
+	dbHeader->setSysColumnsPointer(curDB->_sysColumnsPTR);
+	dbHeader->setSysIndexPointer(curDB->_sysIndexPTR);
+	dbHeader->setTotalDBSize(curDB->_totSize);
+	dbHeader->setTotalPages(curDB->_totSize/curDB->_pageSize);
+	dbHeader->writeDBHeader(dbBuff);
+		
+		
+	retWriteDB = (*bu).writeDB(fdID,curDB->_dbHeaderPTR,(PagePriority)(priority),dbBuff);
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		delete dbHeader;
+		return DATABASEWRITEDBERROR;
+	}
+	delete dbHeader;
+	delete dbBuff;
+
 	delete buffer;
 	return 1;
 }
@@ -1168,6 +1659,40 @@ int DB::createNewSysTablesPage()
 
 	_noSysTablePages++;
 
+	char * dbBuff = new char [_pageSize];
+	bool retReadDB;
+	retReadDB = (*bu).readDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbBuff);
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		return DATABASEREADDBERROR;
+	}
+		
+	DBHeader * dbHeader = new DBHeader(dbBuff,_pageSize);
+	dbHeader->setFreePagePointer(_freePagePTR);
+	dbHeader->setNoFreePages(_noFreePages);
+	dbHeader->setSysTablesPointer(_sysTablesPTR);
+	dbHeader->setSysColumnsPointer(_sysColumnsPTR);
+	dbHeader->setSysIndexPointer(_sysIndexPTR);
+	dbHeader->setTotalDBSize(_totSize);
+	dbHeader->setTotalPages(_totSize/_pageSize);
+	dbHeader->writeDBHeader(dbBuff);
+		
+		
+	retWriteDB = (*bu).writeDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbBuff);
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		delete dbHeader;
+		return DATABASEWRITEDBERROR;
+	}
+	delete dbHeader;
+	delete dbBuff;
+
 	return freePageID;
 }
 
@@ -1203,6 +1728,40 @@ int DB::createNewSysColumnsPage()
 
 	_noSysColumnPages++;
 
+	char * dbBuff = new char [_pageSize];
+	bool retReadDB;
+	retReadDB = (*bu).readDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbBuff);
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		return DATABASEREADDBERROR;
+	}
+		
+	DBHeader * dbHeader = new DBHeader(dbBuff,_pageSize);
+	dbHeader->setFreePagePointer(_freePagePTR);
+	dbHeader->setNoFreePages(_noFreePages);
+	dbHeader->setSysTablesPointer(_sysTablesPTR);
+	dbHeader->setSysColumnsPointer(_sysColumnsPTR);
+	dbHeader->setSysIndexPointer(_sysIndexPTR);
+	dbHeader->setTotalDBSize(_totSize);
+	dbHeader->setTotalPages(_totSize/_pageSize);
+	dbHeader->writeDBHeader(dbBuff);
+		
+		
+	retWriteDB = (*bu).writeDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbBuff);
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		delete dbHeader;
+		return DATABASEWRITEDBERROR;
+	}
+	delete dbHeader;
+	delete dbBuff;
+
 	return freePageID;
 }
 
@@ -1237,6 +1796,40 @@ int DB::createNewSysIndexPage()
 	delete indexBuff;
 
 	_noSysIndexPages++;
+
+	char * dbBuff = new char [_pageSize];
+	bool retReadDB;
+	retReadDB = (*bu).readDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbBuff);
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		return DATABASEREADDBERROR;
+	}
+		
+	DBHeader * dbHeader = new DBHeader(dbBuff,_pageSize);
+	dbHeader->setFreePagePointer(_freePagePTR);
+	dbHeader->setNoFreePages(_noFreePages);
+	dbHeader->setSysTablesPointer(_sysTablesPTR);
+	dbHeader->setSysColumnsPointer(_sysColumnsPTR);
+	dbHeader->setSysIndexPointer(_sysIndexPTR);
+	dbHeader->setTotalDBSize(_totSize);
+	dbHeader->setTotalPages(_totSize/_pageSize);
+	dbHeader->writeDBHeader(dbBuff);
+		
+		
+	retWriteDB = (*bu).writeDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbBuff);
+	if(retWriteDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		delete dbHeader;
+		return DATABASEWRITEDBERROR;
+	}
+	delete dbHeader;
+	delete dbBuff;
 
 	return freePageID;
 }
@@ -1361,6 +1954,47 @@ int DB::createDB(query q)
 
 	BufferManager *bu = BufferManager::getBufferManager();
 	int size = 100*1024*1024;
+
+	if(fdID != -1)
+	{
+		// Some database is already there
+		// Rewrite the DBHeader
+		char * dbBuff = new char [_pageSize];
+		short priority = 3,dirPagePriority = 1;
+		bool retReadDB;
+		retReadDB = (*bu).readDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbBuff);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete dbBuff;
+			return DATABASEREADDBERROR;
+		}
+		
+		DBHeader * dbHeader = new DBHeader(dbBuff,_pageSize);
+		dbHeader->setFreePagePointer(_freePagePTR);
+		dbHeader->setNoFreePages(_noFreePages);
+		dbHeader->setSysTablesPointer(_sysTablesPTR);
+		dbHeader->setSysColumnsPointer(_sysColumnsPTR);
+		dbHeader->setSysIndexPointer(_sysIndexPTR);
+		dbHeader->setTotalDBSize(_totSize);
+		dbHeader->setTotalPages(_totSize/_pageSize);
+		dbHeader->writeDBHeader(dbBuff);
+		
+		// Commit the cache contents to the disk to read the new data base....
+		
+		bool retCommitCache;
+		retCommitCache = (*bu).commitCache();
+		if(retCommitCache == false)
+		{
+			// Commiting to cache failed
+			delete dbHeader;
+			delete dbBuff;
+			return COMMITCACHEERROR;
+		}
+		delete dbHeader;
+		delete dbBuff;
+	}
 
 	int pageSize = (*bu).getPageSize();
 	_pageSize = pageSize;
@@ -1589,6 +2223,8 @@ int DB::useDB(query q)
 		if(retCommitCache == false)
 		{
 			// Commiting to cache failed
+			delete dbHeader;
+			delete dbBuff;
 			return COMMITCACHEERROR;
 		}
 		delete dbHeader;
@@ -2040,7 +2676,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 			if(strncmp((q->columns[i]).type,"INT$$$$$",8) == 0 || strncmp((q->columns[i]).type,"UINT$$$$",8) == 0)
 			{
 				// DataType is an integer
-				int DefaultInt = (q->columns[i]).defaultint;
+				int DefaultInt = atoi((q->columns[i]).defaultstring);
 				char * defString = new char [256];
 				
 				for(int charCount = 0;charCount<256;charCount++)
@@ -2053,7 +2689,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 			else if(strncmp((q->columns[i]).type,"SMALLINT",8) == 0 || strncmp((q->columns[i]).type,"USMALL$$",8) == 0)
 			{
 				// DataType is a short
-				short DefaultShort = (q->columns[i]).defaultshort;
+				short DefaultShort = atoi((q->columns[i]).defaultstring);
 				char * defString = new char [256];
 				
 				for(int charCount = 0;charCount<256;charCount++)
@@ -2066,7 +2702,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 			else if(strncmp((q->columns[i]).type,"BIGINT$$",8) == 0 || strncmp((q->columns[i]).type,"UBIG$$$$",8) == 0)
 			{
 				// DataType is a long
-				long DefaultLong = (q->columns[i]).defaultlong;
+				long DefaultLong = atol((q->columns[i]).defaultstring);
 				char * defString = new char [256];
 				
 				for(int charCount = 0;charCount<256;charCount++)
@@ -2093,7 +2729,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 			else if(strncmp((q->columns[i]).type,"FLOAT$$$",8) == 0)
 			{
 				// DataType is an float
-				float DefaultFloat = (q->columns[i]).defaultfloat;
+				float DefaultFloat = atof((q->columns[i]).defaultstring);
 				// Round off the float precision here....
 				char * defString = new char [256];
 				
@@ -2107,7 +2743,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 			else if(strncmp((q->columns[i].type),"DOUBLE$$",8) == 0)
 			{
 				// DataType is an double
-				double DefaultDouble = (q->columns[i]).defaultdouble;
+				double DefaultDouble = atof((q->columns[i]).defaultstring);
 				// Round off the double precision here....
 				char * defString = new char [256];
 				
@@ -3204,14 +3840,34 @@ int DB::deleteEntry(query q)
 						char * dataBuffer = new char [slotSize];
 						memcpy(dataBuffer,&dataPageBuffer[slotPointer],slotSize);
 
-						bool toBeDeleted = queryEvaluate(q,columnNames,dataTypes,ordinalPositions,scales,columnLengths);
+						bool * deleted = new bool [1];
 
-						if(toBeDeleted == true)
+						int toBeDeleted = queryEvaluate(dataBuffer,q,columnNames,dataTypes,ordinalPositions,scales,columnLengths,deleted);
+
+						if(*deleted == true)
 						{
 							tfs = tfs + slotSize;
 							slotSize = (-1)*slotSize;
 							resCount++;
 							memcpy(&dataPageBuffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-(j+1)*sizeof(int)],&slotSize,sizeof(int));
+						}
+						delete deleted;
+						if(toBeDeleted < 0)
+						{
+							// Error
+							delete dataBuffer;
+							delete deBuf;
+							delete directoryPage;
+							delete curDataPage;
+							delete dataPageBuffer;
+							delete newDirectoryPageEntry;
+							delete entryBuffer;
+							delete dataTypes;
+							delete columnNames;
+							delete ordinalPositions;
+							delete scales;
+							delete columnLengths;
+							return toBeDeleted;
 						}
 						delete dataBuffer;
 					}
