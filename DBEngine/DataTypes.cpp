@@ -762,7 +762,13 @@ int dataCompare(char * data1,char * data2,short dataType)
 	}
 	else if(dataType == 3)
 	{
-		return strcmp(data1,data2);
+		int shortestLength;
+		string d1 = data1,d2 = data2;
+		if(d1.length()<d2.length())
+			shortestLength = d1.length();
+		else
+			shortestLength = d2.length();
+		return strncmp(data1,data2,shortestLength);
 	}
 	else if(dataType == 4)
 	{
@@ -789,7 +795,14 @@ int dataCompare(char * data1,char * data2,short dataType)
 	}
 	else if(dataType == 5)
 	{
-		return strcmp(data1,data2);
+		//return strcmp(data1,data2);
+		int shortestLength;
+		string d1 = data1,d2 = data2;
+		if(d1.length()<d2.length())
+			shortestLength = d1.length();
+		else
+			shortestLength = d2.length();
+		return strncmp(data1,data2,shortestLength);
 	}
 	else if(dataType == 6)
 	{
