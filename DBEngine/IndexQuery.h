@@ -35,6 +35,8 @@ typedef struct indexQuery
 
 	bool resultFlag;
 
+	bool isPrimary; // Flag is set if the column is primary
+
 	char *key;
 	RecordID keyRecord;
 
