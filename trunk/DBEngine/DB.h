@@ -7,6 +7,9 @@
 #include<iomanip>
 #include<cstring>
 #include <vector>
+#include<climits>
+#include<cfloat>
+#include<cerrno>
 
 #include"globalDBEngine.h"
 #include"../cachemgr/src/BufferManager.h"
@@ -23,6 +26,7 @@
 using namespace std;
 
 static int fdID;
+static bool debugFlag = false;
 
 class DB
 {
@@ -88,6 +92,7 @@ class DB
 		int createDB(query q);
 		int useDB(query q);
 		int dropDB(query q);
+		int showDB(query q);
 		int createTable(/*Query Parameter Structure*/query q);
 		int dropTable(query q);
 		int createIndex(query q);
@@ -110,7 +115,12 @@ class DB
 		int deleteSysColumnsEntry(string _dbName,string _tableName,string _columnName,string _dataType);
 		int createNewSysIndexEntry(SysIndexEntry newSysIndexEntry);
 		int deleteSysIndexEntry(string indexName,string tableName);
-		int insertDataBaseEntry(int directoryPageID,char *dataBuffer);
+		int createNewDirectoryPageEntry(int directoryPageID,int newDataPageID,int tfs,bool *noOfPagesChanged);
+		int insertDataBaseEntry(int directoryPageID,char *dataBuffer,bool *noOfPagesChanged);
+
+		bool queryEvaluate(query q,string * columnNames,string * dataTypes,int * ordinalPositions,short * scales,int * columnLengths);
+		bool indexUse(condition * rootTree,string tableName,int * indexPageID,int * indexID);
+
 		int createNewSysTablesPage();
 		int createNewSysColumnsPage();
 		int createNewSysIndexPage();
@@ -122,7 +132,19 @@ class DB
 		int deleteDirectoryPage(int pageID);
 		int deleteDataPage(int pageID);
 
+		// Log entries
+		bool writeLog(string message)
+		{
+			ofstream myfile;
+			myfile.open (DEBUGFILENAME);
+			myfile << "From DB: "<<message<<endl;
+			myfile.close();
+		}
+
 		// Making these methods friends as Indexing also needs these function calls to get the Free page and to add the Free page
 		friend int getFreePage(DB * curDB);
 		friend int addFreePageList(DB * curDB,int pageID);
+
+		// This is the function which will call the main database queries. Parser will call this method. Check pageSize before execution of the query here itself And throw error if the two are different
+		friend int mainDB(query q);
 };
