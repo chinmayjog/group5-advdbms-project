@@ -13,7 +13,7 @@ dateStruct* getDate(char []);
 
 typedef struct columnStruct{
 	char name[64];
-	char type[20];
+	char type[9];
 	char function[10];
 	int sizeofField1;
 	int sizeofField2; //only for decfloat
@@ -27,7 +27,7 @@ typedef struct columnStruct{
 
 typedef struct insertionStruct{
 	char colname[64];
-	char type[20];
+	char type[9];
 	char str[64];
 	dateStruct *d;
 }insertStruct;
