@@ -42,23 +42,31 @@ void traverse(condition *node){
 }
 */
 int main( int argc, char *argv[] ) {
+	BufferManager *bu = BufferManager::getBufferManager();
+	(*bu).setPageSize(2048);
+	(*bu).initializeCache(2048); 
 	string s="";
 	do{
 		cout<<"\ndb> ";
 		std::getline(cin, s);	
 		if(s=="exit" || s=="exit;") 
 			break;
+		else if(s=="$cache")
+			BufferManagerInterface();
 		else {
 			string c = s;
 			query q = load_query((const char *)c.c_str());
 			if(q->error!=1){
-				if(!strcmp(q->type, "CACHE")){
-					int c = BufferManagerInterface();
-					cin.clear();
+				if(s!=""){
+					DB *newdb = new DB();
+					int result = newdb->mainDB(newdb, q);
+					cout<<endl<<"Result is:"<<result<<endl;
+					delete(newdb);
 				}
-				else
-				{
-					if(!strcmp(q->type, "CREATETBL") || !strcmp(q->type, "CREATEIND"))
+					/*if(!strcmp(q->type, "CREATED")){
+						int result = newdb->createDB(q);
+					}
+					else if(!strcmp(q->type, "CREATETBL") || !strcmp(q->type, "CREATEIND"))
 						for(int i = q->cntColumns -1; i>= 0; i--)
 						{
 							cout<<(q->columns[i]).name<<endl;
@@ -74,8 +82,8 @@ int main( int argc, char *argv[] ) {
 						}
 					if(!strcmp(q->type, "SELECT") || !strcmp(q->type, "DELETE")  || !strcmp(q->type, "UPDATE"))
 						//traverse(q->root);
-					cout<<endl;
-				}
+					cout<<endl; */
+				
 			}
 			delete(q);
 		}

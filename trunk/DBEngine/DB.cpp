@@ -233,7 +233,7 @@ int DB::extendFreeSpace()
 	return _lastFreePagePTR;
 }
 
-int mainDB(DB * curDB,query q)
+int DB::mainDB(DB * curDB,query q)
 {
 	string queryType = q->type;
 	int curPageSize = curDB->getPageSize();

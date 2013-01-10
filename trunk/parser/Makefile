@@ -1,7 +1,7 @@
 .PHONY: all clean
 
 all: lex.yy.o parser.tab.o main.o
-	g++ obj/parser.tab.o obj/lex.yy.o obj/main.o ../cachemgr/obj/BufferManager*.o -lfl -o parser
+	g++ ../DBEngine/SysTables.o ../DBEngine/SysColumns.o ../DBEngine/SysIndex.o ../DBEngine/FreeList.o ../DBEngine/DataPage.o ../DBEngine/DBHeader.o ../DBEngine/dataDirectoryPage.o ../DBEngine/DataTypes.o ../DBEngine/DB.o obj/parser.tab.o obj/lex.yy.o obj/main.o ../cachemgr/obj/BufferManager*.o -lfl -o parser
 
 main.o: parser.tab.o lex.yy.o
 	g++ -c src/parser.tab.c -o obj/parser.tab.o
