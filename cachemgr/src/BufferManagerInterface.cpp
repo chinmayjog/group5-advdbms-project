@@ -1,5 +1,6 @@
 #include "BufferManager.h"
 #include<limits>
+string filepath = "../testDB/";
 int getdatafileID(){
 	int datafileID;
 	cout<<endl<<" Enter the database id[0-2]: ";

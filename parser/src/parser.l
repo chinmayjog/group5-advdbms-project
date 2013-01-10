@@ -13,7 +13,6 @@ hour  [0-2]
 minsec [0-5]
 %%
 [ \t\n]
-"$cache"					return CACHE;
 create						return CREATE;
 show						return SHOW;
 use							return USE;

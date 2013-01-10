@@ -57,7 +57,6 @@ class DB
 			_pageSize = 2048;
 			_totSize = 100*1024*1024;
 			_noFreePages = (_totSize/_pageSize)-4;
-			::fdID = -1;
 		}
 
 		~DB()
@@ -156,5 +155,5 @@ class DB
 		friend int addFreePageList(DB * curDB,int pageID);
 
 		// This is the function which will call the main database queries. Parser will call this method. Check pageSize before execution of the query here itself And throw error if the two are different
-		friend int mainDB(query q);
+		int mainDB(DB* curDB, query q);
 };
