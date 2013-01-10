@@ -40,6 +40,7 @@ typedef struct conditionStruct{
 	dateStruct *rightdttm[50];
 	optype lt, rt;
 	int rightcnt;
+	bool flag;
 	
 	
 }condition;
