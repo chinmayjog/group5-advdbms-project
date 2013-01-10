@@ -126,6 +126,7 @@ class DB
 		int insertDataBaseEntry(int directoryPageID,char *dataBuffer,bool *noOfPagesChanged,int *dataPageID,int *slotID);
 
 		int queryEvaluate(char * data,query q,string * columnNames,string * dataTypes,int * ordinalPositions,short * scales,int * columnLengths,bool *result);
+		int evaluateLeafNode(char * data,condition * node,string * columnNames,string * dataTypes,int * ordinalPositions,short * scales,int * columnLengths,bool *result);
 		int countNodes(condition * root);
 		int countLevels(condition * root);
 		bool indexUse(condition * rootTree,string tableName,int * indexPageID,int * indexID);

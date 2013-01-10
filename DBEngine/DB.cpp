@@ -350,6 +350,275 @@ int DB::extendFreeSpace()
 	return _lastFreePagePTR;
 }
 
+int DB::evaluateLeafNode(char * data,condition * node,string * columnNames,string * dataTypes,int * ordinalPositions,short * scales,int * columnLengths,bool *result)
+{
+	string columnNameToCheck = node->colname;
+	int noOfRightNodes = node->rightcnt;
+	char *dataType;
+	if(noOfRightNodes >= 1 && node->cond == INC)
+	{
+		// It is an IN Query
+		string * columnValueToCheck = new string [noOfRightNodes];
+		for(int k = 0;k<noOfRightNodes;k++)
+			columnValueToCheck[k] = node->rightstr[k];
+		int noOfColumns = sizeof(columnLengths)/sizeof(columnLengths[0]);
+		bool columnFound = false;
+		int sizeShort = sizeof(short);
+		int sumOffSet = 0;
+		for(int i=0;i<noOfColumns;i++)
+		{
+			short offset;
+			memcpy(&offset,&data[sumOffSet],sizeof(short));
+			if(columnNames[i] == columnNameToCheck)
+			{
+				columnFound = true;
+				int compareResult;
+				if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)==0)
+				{
+					int length;
+					memcpy(&length,&data[sumOffSet+sizeof(short)],sizeof(int));
+					char * currentColumnValue = new char [length];
+					memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)+sizeof(int)],length);
+					string currentValue = currentColumnValue;
+					dataType = (char *) dataTypes[i].c_str();
+					short dataTypeID = retDataTypeID(dataType);
+					for(int j = 0;j<noOfRightNodes;j++)
+					{
+						compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck[j].c_str(),dataTypeID);
+						if(compareResult == 0)
+							break;
+					}
+					delete currentColumnValue;
+					for(int j = 0;j<noOfRightNodes;j++)
+					{
+						if(currentValue.length() < columnValueToCheck[j].length())
+							return QUERYLENGTHERROR;
+					}
+					if(compareResult == 0)
+					{
+						*result = true;
+						return 1;
+					}
+					else
+					{
+						*result = false;
+						return 1;
+					}
+				}
+				else
+				{
+					char * currentColumnValue = new char [offset];
+					memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)],offset);
+					short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
+					string currentValue = currentColumnValue;
+					for(int j = 0;j<noOfRightNodes;j++)
+					{
+						compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck[j].c_str(),dataTypeID);
+						if(compareResult == 0)
+							break;
+					}
+					delete currentColumnValue;
+					if(strncmp(dataTypes[i].c_str(),"CHAR$$$$",8)==0)
+					{
+						for(int j = 0;j<noOfRightNodes;j++)
+						{
+							if(currentValue.length() < columnValueToCheck[j].length())
+								return QUERYLENGTHERROR;
+						}
+					}
+					if(compareResult == 0)
+					{
+						*result = true;
+						return 1;
+					}
+					else
+					{
+						*result = false;
+						return 1;
+					}
+				}
+			}
+		}
+		delete [] columnValueToCheck;
+	}
+	else if(node->cond == LIKEC)
+	{
+		string columnValueToCheck = node->rightstr[0];
+		int noOfColumns = sizeof(columnLengths)/sizeof(columnLengths[0]);
+		bool columnFound = false;
+		int sizeShort = sizeof(short);
+		int sumOffSet = 0;
+		for(int i=0;i<noOfColumns;i++)
+		{
+			short offset;
+			memcpy(&offset,&data[sumOffSet],sizeof(short));
+			if(columnNames[i] == columnNameToCheck)
+			{
+				columnFound = true;
+				int compareResult;
+				if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)!=0 || strncmp(dataTypes[i].c_str(),"CHAR$$$$",8)!=0)
+				{
+					return QUERYERROR;
+				}
+				if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)==0)
+				{
+					int length;
+					memcpy(&length,&data[sumOffSet+sizeof(short)],sizeof(int));
+					char * currentColumnValue = new char [length];
+					memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)+sizeof(int)],length);
+					short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
+					string d1 = currentColumnValue;
+					int l1 = d1.length();
+					int l2 = columnValueToCheck.length();
+					if(l1<l2)
+					{
+						delete currentColumnValue;
+						return QUERYLENGTHERROR;
+					}
+					delete currentColumnValue;
+					int findValue = d1.find(columnValueToCheck);
+					if(findValue != string::npos)
+					{
+						*result = true;
+						return 1;
+					}
+					else
+					{
+						*result = false;
+						return 1;
+					}
+				}
+				else
+				{
+					char * currentColumnValue = new char [offset];
+					memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)],offset);
+					short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
+					string d1 = currentColumnValue;
+					int l1 = d1.length();
+					int l2 = columnValueToCheck.length();
+					if(l1<l2)
+					{
+						delete currentColumnValue;
+						return QUERYLENGTHERROR;
+					}
+					delete currentColumnValue;
+					int findValue = d1.find(columnValueToCheck);
+					if(findValue != string::npos)
+					{
+						*result = true;
+						return 1;
+					}
+					else
+					{
+						*result = false;
+						return 1;
+					}
+				}
+			}
+			sumOffSet = sumOffSet+sizeof(short)+offset;
+		}
+	}
+	else
+	{
+		// It is not IN or LIKE query Only one value will be there
+		// If noOfRightNodes > 1 error
+		if(noOfRightNodes > 1)
+			return QUERYERROR;
+		string columnValueToCheck = node->rightstr[0];
+		int noOfColumns = sizeof(columnLengths)/sizeof(columnLengths[0]);
+		bool columnFound = false;
+		int sizeShort = sizeof(short);
+		int sumOffSet = 0;
+		for(int i=0;i<noOfColumns;i++)
+		{
+			short offset;
+			memcpy(&offset,&data[sumOffSet],sizeof(short));
+			if(columnNames[i] == columnNameToCheck)
+			{
+				columnFound = true;
+				int compareResult;
+				if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)==0)
+				{
+					int length;
+					memcpy(&length,&data[sumOffSet+sizeof(short)],sizeof(int));
+					char * currentColumnValue = new char [length];
+					memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)+sizeof(int)],length);
+					short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
+					string currentValue = currentColumnValue;
+					compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck.c_str(),dataTypeID);
+					delete currentColumnValue;
+					if(currentValue.length() < columnValueToCheck.length())
+						return QUERYLENGTHERROR;
+				}
+				else
+				{
+					char * currentColumnValue = new char [offset];
+					memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)],offset);
+					short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
+					string currentValue = currentColumnValue;
+					compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck.c_str(),dataTypeID);
+					delete currentColumnValue;
+					if(strncmp(dataTypes[i].c_str(),"CHAR$$$$",8)==0)
+					{
+						if(currentValue.length() < columnValueToCheck.length())
+							return QUERYLENGTHERROR;
+					}
+				}
+				if(node->cond == EQL)
+				{
+					if(compareResult == 0)
+					{
+						*result = true;
+						return 1;
+					}
+				}
+				else if(node->cond == NEQL)
+				{
+					if(compareResult != 0)
+					{
+						*result = true;
+						return 1;
+					}
+				}
+				else if(node->cond == LET)
+				{
+					if(compareResult < 0)
+					{
+						*result = true;
+						return 1;
+					}
+				}
+				else if(node->cond == LEQ)
+				{
+					if(compareResult <= 0)
+					{
+						*result = true;
+						return 1;
+					}
+				}
+				else if(node->cond == GRT)
+				{
+					if(compareResult > 0)
+					{
+						*result = true;
+						return 1;
+					}
+				}
+				else if(node->cond == GEQ)
+				{
+					if(compareResult >= 0)
+					{
+						*result = true;
+						return 1;
+					}
+				}
+			}
+			sumOffSet = sizeof(short)+offset;
+		}
+	}
+	return QUERYERROR;
+}
+
 int DB::queryEvaluate(char * data,query q,string * columnNames,string * dataTypes,int * ordinalPositions,short * scales,int * columnLengths,bool *result)
 {
 	condition * conditionTree = q->root;
@@ -357,291 +626,154 @@ int DB::queryEvaluate(char * data,query q,string * columnNames,string * dataType
 	int noOfLevels = countLevels(conditionTree);
 	char *dataType;
 
-	if(noOfNodes == 1)
+	stack<condition *> st;
+	st.push(conditionTree);
+	condition * prev = NULL;
+	while(!st.empty())
 	{
-		// It has no AND and OR conditions
-		// Just operate left on right and send back the result.
-		string columnNameToCheck = q->root->colname;
-		int noOfRightNodes = q->root->rightcnt;
-		if(noOfRightNodes >= 1 && q->root->cond == INC)
+		condition * curr = st.top();
+		if(!prev || prev->lhs == curr || prev->rhs == curr)
 		{
-			// It is an IN Query
-			string * columnValueToCheck = new string [noOfRightNodes];
-			for(int k = 0;k<noOfRightNodes;k++)
-				columnValueToCheck[k] = q->root->rightstr[k];
-			int noOfColumns = sizeof(columnLengths)/sizeof(columnLengths[0]);
-			bool columnFound = false;
-			int sizeShort = sizeof(short);
-			int sumOffSet = 0;
-			for(int i=0;i<noOfColumns;i++)
+			if(curr->lhs)
 			{
-				short offset;
-				memcpy(&offset,&data[sumOffSet],sizeof(short));
-				if(columnNames[i] == columnNameToCheck)
+				st.push(curr->lhs);
+			}
+			else if(curr->rhs)
+			{
+				st.push(curr->rhs);
+			}
+			else
+			{
+				if(curr->lhs == NULL && curr->rhs == NULL)
 				{
-					columnFound = true;
-					int compareResult;
-					if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)==0)
+					// It is a leaf node
+					bool * resComp = new bool [1];
+					int resLeafEvaluate = evaluateLeafNode(data,curr,columnNames,dataTypes,ordinalPositions,scales,columnLengths,resComp);
+					if(resLeafEvaluate < 0)
 					{
-						int length;
-						memcpy(&length,&data[sumOffSet+sizeof(short)],sizeof(int));
-						char * currentColumnValue = new char [length];
-						memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)+sizeof(int)],length);
-						string currentValue = currentColumnValue;
-						dataType = (char *) dataTypes[i].c_str();
-						short dataTypeID = retDataTypeID(dataType);
-						for(int j = 0;j<noOfRightNodes;j++)
-						{
-							compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck[j].c_str(),dataTypeID);
-							if(compareResult == 0)
-								break;
-						}
-						delete currentColumnValue;
-						for(int j = 0;j<noOfRightNodes;j++)
-						{
-							if(currentValue.length() < columnValueToCheck[j].length())
-								return QUERYLENGTHERROR;
-						}
-						if(compareResult == 0)
-						{
-							*result = true;
-							return 1;
-						}
-						else
-						{
-							*result = false;
-							return 1;
-						}
+						delete resComp;
+						return resLeafEvaluate;
 					}
-					else
+					if(*resComp == true)
+						curr->flag = true;
+					else if(*resComp == false)
+						curr->flag = false;
+				}
+				else
+				{
+					// Node is internal
+					if(curr->cond == ANDC)
 					{
-						char * currentColumnValue = new char [offset];
-						memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)],offset);
-						short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
-						string currentValue = currentColumnValue;
-						for(int j = 0;j<noOfRightNodes;j++)
-						{
-							compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck[j].c_str(),dataTypeID);
-							if(compareResult == 0)
-								break;
-						}
-						delete currentColumnValue;
-						if(strncmp(dataTypes[i].c_str(),"CHAR$$$$",8)==0)
-						{
-							for(int j = 0;j<noOfRightNodes;j++)
-							{
-								if(currentValue.length() < columnValueToCheck[j].length())
-									return QUERYLENGTHERROR;
-							}
-						}
-						if(compareResult == 0)
-						{
-							*result = true;
-							return 1;
-						}
+						if(curr->lhs->flag && curr->rhs->flag == true)
+							curr->flag = true;
 						else
-						{
-							*result = false;
-							return 1;
-						}
+							curr->flag = false;
+					}
+					else if(curr->cond == ORC)
+					{
+						if(curr->lhs->flag || curr->rhs->flag == true)
+							curr->flag = true;
+						else
+							curr->flag = false;
 					}
 				}
+				st.pop();
 			}
-			delete [] columnValueToCheck;
 		}
-		else if(q->root->cond == LIKEC)
+		else if(curr->lhs == prev)
 		{
-			string columnValueToCheck = q->root->rightstr[0];
-			int noOfColumns = sizeof(columnLengths)/sizeof(columnLengths[0]);
-			bool columnFound = false;
-			int sizeShort = sizeof(short);
-			int sumOffSet = 0;
-			for(int i=0;i<noOfColumns;i++)
+			if(curr->rhs)
 			{
-				short offset;
-				memcpy(&offset,&data[sumOffSet],sizeof(short));
-				if(columnNames[i] == columnNameToCheck)
+				st.push(curr->rhs);
+			}
+			else
+			{
+				if(curr->lhs == NULL && curr->rhs == NULL)
 				{
-					columnFound = true;
-					int compareResult;
-					if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)!=0 || strncmp(dataTypes[i].c_str(),"CHAR$$$$",8)!=0)
+					// It is a leaf node
+					bool * resComp = new bool [1];
+					int resLeafEvaluate = evaluateLeafNode(data,curr,columnNames,dataTypes,ordinalPositions,scales,columnLengths,resComp);
+					if(resLeafEvaluate < 0)
 					{
-						return QUERYERROR;
+						delete resComp;
+						return resLeafEvaluate;
 					}
-					if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)==0)
+					if(*resComp == true)
+						curr->flag = true;
+					else if(*resComp == false)
+						curr->flag = false;
+				}
+				else
+				{
+					// Node is internal
+					if(curr->cond == ANDC)
 					{
-						int length;
-						memcpy(&length,&data[sumOffSet+sizeof(short)],sizeof(int));
-						char * currentColumnValue = new char [length];
-						memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)+sizeof(int)],length);
-						short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
-						string d1 = currentColumnValue;
-						int l1 = d1.length();
-						int l2 = columnValueToCheck.length();
-						if(l1<l2)
-						{
-							delete currentColumnValue;
-							return QUERYLENGTHERROR;
-						}
-						delete currentColumnValue;
-						int findValue = d1.find(columnValueToCheck);
-						if(findValue != string::npos)
-						{
-							*result = true;
-							return 1;
-						}
+						if(curr->lhs->flag && curr->rhs->flag == true)
+							curr->flag = true;
 						else
-						{
-							*result = false;
-							return 1;
-						}
+							curr->flag = false;
 					}
-					else
+					else if(curr->cond == ORC)
 					{
-						char * currentColumnValue = new char [offset];
-						memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)],offset);
-						short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
-						string d1 = currentColumnValue;
-						int l1 = d1.length();
-						int l2 = columnValueToCheck.length();
-						if(l1<l2)
-						{
-							delete currentColumnValue;
-							return QUERYLENGTHERROR;
-						}
-						delete currentColumnValue;
-						int findValue = d1.find(columnValueToCheck);
-						if(findValue != string::npos)
-						{
-							*result = true;
-							return 1;
-						}
+						if(curr->lhs->flag || curr->rhs->flag == true)
+							curr->flag = true;
 						else
-						{
-							*result = false;
-							return 1;
-						}
+							curr->flag = false;
 					}
 				}
-				sumOffSet = sumOffSet+sizeof(short)+offset;
+				st.pop();
 			}
 		}
-		else
+		else if(prev->rhs == curr)
 		{
-			// It is not IN or LIKE query Only one value will be there
-			// If noOfRightNodes > 1 error
-			if(noOfRightNodes > 1)
-				return QUERYERROR;
-			string columnValueToCheck = q->root->rightstr[0];
-			int noOfColumns = sizeof(columnLengths)/sizeof(columnLengths[0]);
-			bool columnFound = false;
-			int sizeShort = sizeof(short);
-			int sumOffSet = 0;
-			for(int i=0;i<noOfColumns;i++)
+			if(curr->lhs == NULL && curr->rhs == NULL)
 			{
-				short offset;
-				memcpy(&offset,&data[sumOffSet],sizeof(short));
-				if(columnNames[i] == columnNameToCheck)
+				// It is a leaf node
+				bool * resComp = new bool [1];
+				int resLeafEvaluate = evaluateLeafNode(data,curr,columnNames,dataTypes,ordinalPositions,scales,columnLengths,resComp);
+				if(resLeafEvaluate < 0)
 				{
-					columnFound = true;
-					int compareResult;
-					if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)==0)
-					{
-						int length;
-						memcpy(&length,&data[sumOffSet+sizeof(short)],sizeof(int));
-						char * currentColumnValue = new char [length];
-						memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)+sizeof(int)],length);
-						short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
-						string currentValue = currentColumnValue;
-						compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck.c_str(),dataTypeID);
-						delete currentColumnValue;
-						if(currentValue.length() < columnValueToCheck.length())
-							return QUERYLENGTHERROR;
-					}
-					else
-					{
-						char * currentColumnValue = new char [offset];
-						memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)],offset);
-						short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
-						string currentValue = currentColumnValue;
-						compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck.c_str(),dataTypeID);
-						delete currentColumnValue;
-						if(strncmp(dataTypes[i].c_str(),"CHAR$$$$",8)==0)
-						{
-							if(currentValue.length() < columnValueToCheck.length())
-								return QUERYLENGTHERROR;
-						}
-					}
-					if(q->root->cond == EQL)
-					{
-						if(compareResult == 0)
-						{
-							*result = true;
-							return 1;
-						}
-					}
-					else if(q->root->cond == NEQL)
-					{
-						if(compareResult != 0)
-						{
-							*result = true;
-							return 1;
-						}
-					}
-					else if(q->root->cond == LET)
-					{
-						if(compareResult < 0)
-						{
-							*result = true;
-							return 1;
-						}
-					}
-					else if(q->root->cond == LEQ)
-					{
-						if(compareResult <= 0)
-						{
-							*result = true;
-							return 1;
-						}
-					}
-					else if(q->root->cond == GRT)
-					{
-						if(compareResult > 0)
-						{
-							*result = true;
-							return 1;
-						}
-					}
-					else if(q->root->cond == GEQ)
-					{
-						if(compareResult >= 0)
-						{
-							*result = true;
-							return 1;
-						}
-					}
+					delete resComp;
+					return resLeafEvaluate;
 				}
-				sumOffSet = sizeof(short)+offset;
+				if(*resComp == true)
+					curr->flag = true;
+				else if(*resComp == false)
+					curr->flag = false;
 			}
+			else
+			{
+				// Node is internal
+				if(curr->cond == ANDC)
+				{
+					if(curr->lhs->flag && curr->rhs->flag == true)
+						curr->flag = true;
+					else
+						curr->flag = false;
+				}
+				else if(curr->cond == ORC)
+				{
+					if(curr->lhs->flag || curr->rhs->flag == true)
+						curr->flag = true;
+					else
+						curr->flag = false;
+				}
+			}
+			st.pop();
 		}
-		return QUERYERROR;
+		prev = curr;
 	}
-	else if(noOfNodes == 3)
+
+	if(q->root->flag == true)
 	{
-		// It is a 1 level tree, one AND or one OR and the variables
-		
+		*result = true;
 	}
 	else
 	{
-		// It has multiple AND and OR conditions
-		string * postFixQueryString = new string [noOfNodes];
-		stack<condition *> st;
-		st.push(conditionTree);
-		
-		{
-
-		}
+		*result = false;
 	}
+
+	return 1;
 }
 
 int DB::countNodes(condition * root)
@@ -2428,7 +2560,31 @@ int DB::useDB(query q)
 
 int DB::showDB(query q)
 {
+	BufferManager *bu = BufferManager::getBufferManager();
 
+	vector<string> files = vector<string>();
+	string filePath = DBROOT;
+
+	bool listDBres = (*bu).listDBs(filePath,files);
+	if(listDBres == false)
+	{
+		// Unable to open the data directory
+		return UNABLETOOPENFOLDERERROR;
+	}
+	
+	q->cntColumns = files.size();
+	q->results = new char * [q->cntColumns];
+	for(int countRes = 0;countRes<(q->cntColumns);countRes++)
+		q->results[countRes] = new char [255];
+
+	for (unsigned int listCount = 0;listCount < files.size();listCount++)
+	{
+		int lastPos = files[listCount].find_last_of("_");
+		string curFileName = files[listCount].substr(0,lastPos);
+		q->results[listCount] = (char *) curFileName.c_str();
+	}
+
+	return 1;
 }
 
 int DB::dropDB(query q)
@@ -3983,7 +4139,7 @@ int DB::deleteEntry(query q)
 
 int DB::updateEntry(query q)
 {
-/*
+
 	// For update command
 	// Index check required
 	// If varchar field is getting updated - delete and insert.....
@@ -4093,6 +4249,11 @@ int DB::updateEntry(query q)
 	int * ordinalPositions = new int [colCount];
 	int * columnLengths = new int [colCount];
 	short * scales = new short [colCount];
+
+	int * oldSlotID = new int [1];
+	int * newSlotID = new int [1];
+	int * oldDataPageID = new int [1];
+	int * newDataPageID = new int [1];
 
 	for(short curColCount = 0;curColCount<colCount;curColCount++)
 	{
@@ -4234,13 +4395,13 @@ int DB::updateEntry(query q)
 						{
 							resCount++;
 							// Delete the old record and insert the new one
-							char * newData = new char [];
+							//char * newData = new char [];
 							char * newData = new char [slotSize];
 							int updatePos = 0;
 							string * toModifyValues = new string [colCount];
-							string oldString;
-							for(i=0;i<slotSize;i++)
-								oldString = oldString+dataBuffer[i];
+							//string oldString;
+							//for(i=0;i<slotSize;i++)
+							//	oldString = oldString+dataBuffer[i];
 							string updateString;
 							bool * modifiedFlags = new bool [colCount];
 
@@ -4264,6 +4425,8 @@ int DB::updateEntry(query q)
 								short modifyScales = scales[c1];
 								int modifyColumnLength = columnLengths[c1];
 								bool modifiedFlag = false,varcharFlag = false;
+								string curUpdateString;
+								short curUpdatePos;
 								for(c2 = 0;c2<q->cntColumns;c2++)
 								{
 									string curColumnName = (q->ins[c2]).colname;
@@ -4274,96 +4437,151 @@ int DB::updateEntry(query q)
 										if(strncmp(modifyDataType.c_str(),"INT$$$$$",8) == 0||strncmp(modifyDataType.c_str(),"UINT$$$$",8) == 0)
 										{
 											string curColData = (q->ins[c2]).str;
-											int curData = atoi(curColData);
-											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
-											memcpy(&newData[updatePos+sizeof(short)],&curData,sizeof(int));
+											int curData = atoi(curColData.c_str());
+											memcpy(&newDataPos[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newDataPos[updatePos+sizeof(short)],&curData,sizeof(int));
+											for(int c3=0;c3<(sizeof(short)+sizeof(int));c3++)
+												curUpdateString = curUpdateString+newDataPos[c3];
 											toModifyValues[curColCount] = curColData;
+											curUpdatePos = sizeof(short)+sizeof(int);
 										}
 										else if(strncmp(modifyDataType.c_str(),"SMALLINT",8) == 0||strncmp(modifyDataType.c_str(),"USMALL$$",8) == 0)
 										{
 											string curColData = (q->ins[c2]).str;
-											short curData = atoi(curColData);
-											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
-											memcpy(&newData[updatePos+sizeof(short)],&curData,sizeof(short));
+											short curData = atoi(curColData.c_str());
+											memcpy(&newDataPos[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newDataPos[updatePos+sizeof(short)],&curData,sizeof(short));
+											for(int c3=0;c3<(sizeof(short)+sizeof(short));c3++)
+												curUpdateString = curUpdateString+newDataPos[c3];
 											toModifyValues[curColCount] = curColData;
+											curUpdatePos = sizeof(short)+sizeof(short);
 										}
 										else if(strncmp(modifyDataType.c_str(),"BIGINT$$",8) == 0||strncmp(modifyDataType.c_str(),"UBIG$$$$",8) == 0)
 										{
 											string curColData = (q->ins[c2]).str;
-											long curData = atol(curColData);
-											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
-											memcpy(&newData[updatePos+sizeof(short)],&curData,sizeof(long));
+											long curData = atol(curColData.c_str());
+											memcpy(&newDataPos[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newDataPos[updatePos+sizeof(short)],&curData,sizeof(long));
+											for(int c3=0;c3<(sizeof(short)+sizeof(long));c3++)
+												curUpdateString = curUpdateString+newDataPos[c3];
 											toModifyValues[curColCount] = curColData;
-										}											}
+											curUpdatePos = sizeof(short)+sizeof(long);
+										}
 										else if(strncmp(modifyDataType.c_str(),"FLOAT$$$",8) == 0)
 										{
 											string curColData = (q->ins[c2]).str;
-											float curData = atof(curColData);
-											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
-											memcpy(&newData[updatePos+sizeof(short)],&curData,sizeof(float));
+											float curData = atof(curColData.c_str());
+											memcpy(&newDataPos[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newDataPos[updatePos+sizeof(short)],&curData,sizeof(float));
+											for(int c3=0;c3<(sizeof(short)+sizeof(float));c3++)
+												curUpdateString = curUpdateString+newDataPos[c3];
 											toModifyValues[curColCount] = curColData;
+											curUpdatePos = sizeof(short)+sizeof(float);
 										}
 										else if(strncmp(modifyDataType.c_str(),"DOUBLE$$",8) == 0)
 										{
 											string curColData = (q->ins[c2]).str;
-											double curData = atof(curColData);
-											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
-											memcpy(&newData[updatePos+sizeof(short)],&curData,sizeof(double));
+											double curData = atof(curColData.c_str());
+											memcpy(&newDataPos[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newDataPos[updatePos+sizeof(short)],&curData,sizeof(double));
+											for(int c3=0;c3<(sizeof(short)+sizeof(double));c3++)
+												curUpdateString = curUpdateString+newDataPos[c3];
 											toModifyValues[curColCount] = curColData;
+											curUpdatePos = sizeof(short)+sizeof(double);
 										}
 										else if(strncmp(modifyDataType.c_str(),"CHAR$$$$",8) == 0)
 										{
 											string curColData = (q->ins[c2]).str;
-											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
-											memcpy(&newData[updatePos+sizeof(short)],curColData.c_str(),curColData.length());
+											memcpy(&newDataPos[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newDataPos[updatePos+sizeof(short)],curColData.c_str(),curColData.length());
+											for(int c3=0;c3<modifyColumnLength;c3++)
+												curUpdateString = curUpdateString+'\0';
+											for(int c3=0;c3<(sizeof(short)+curColData.length());c3++)
+												curUpdateString[c3] = curUpdateString[c3]+newDataPos[c3];
 											toModifyValues[curColCount] = curColData;
+											curUpdatePos = sizeof(short)+curColData.length();
 										}
 										else if(strncmp(modifyDataType.c_str(),"VARCHAR$",8) == 0)
 										{
 											string curColData = (q->ins[c2]).str;
 											int stringLength = curColData.length();
-											delete newDataPos;
+											char * newDataVarChar = new char [sizeof(short)+sizeof(int)+stringLength];
 											varcharFlag == true;
 											varcharLength = sizeof(short)+sizeof(int)+stringLength;
 											newDataPos = new char [sizeof(int)+stringLength];
-											memcpy(&newData[updatePos],&varcharLength,sizeof(short));
-											memcpy(&newData[updatePos+sizeof(short)],&stringLength,sizeof(int));
-											memcpy(&newData[updatePos+sizeof(short)+sizeof(int)],curColData.c_str(),curColData.length());
+											memcpy(&newDataVarChar[updatePos],&varcharLength,sizeof(short));
+											memcpy(&newDataVarChar[updatePos+sizeof(short)],&stringLength,sizeof(int));
+											memcpy(&newDataVarChar[updatePos+sizeof(short)+sizeof(int)],curColData.c_str(),curColData.length());
+											for(int c3=0;c3<varcharLength;c3++)
+												curUpdateString[c3] = curUpdateString[c3]+newDataVarChar[c3];
+											delete newDataVarChar;
 											toModifyValues[curColCount] = curColData;
+											curUpdatePos = varcharLength;
 										}
 										else if(strncmp(modifyDataType.c_str(),"DATE$$$$",8) == 0)
 										{
-											string curColData = ((q->ins[c2])->d).date;
-											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
-											memcpy(&newData[updatePos+sizeof(short)],curColData.c_str(),curColData.length());
+											string curColData = ((q->ins[c2]).d)->date;
+											memcpy(&newDataPos[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newDataPos[updatePos+sizeof(short)],curColData.c_str(),curColData.length());
+											for(int c3=0;c3<(sizeof(short)+curColData.length());c3++)
+												curUpdateString[c3] = curUpdateString[c3]+newDataPos[c3];
 											toModifyValues[curColCount] = curColData;
+											curUpdatePos = sizeof(short)+curColData.length();
 										}
 										else if(strncmp(modifyDataType.c_str(),"TIME$$$$",8) == 0)
 										{
-											string curColData = ((q->ins[c2])->d).time;
-											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
-											memcpy(&newData[updatePos+sizeof(short)],curColData.c_str(),curColData.length());
+											string curColData = ((q->ins[c2]).d)->time;
+											memcpy(&newDataPos[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newDataPos[updatePos+sizeof(short)],curColData.c_str(),curColData.length());
+											for(int c3=0;c3<(sizeof(short)+curColData.length());c3++)
+												curUpdateString[c3] = curUpdateString[c3]+newDataPos[c3];
 											toModifyValues[curColCount] = curColData;
+											curUpdatePos = sizeof(short)+curColData.length();
 										}
 										else if(strncmp(modifyDataType.c_str(),"DATETIME",8) == 0)
 										{
-											string curColDate = ((q->ins[c2])->d).date;
-											string curColTime = ((q->ins[c2])->d).time;
-											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
-											memcpy(&newData[updatePos+sizeof(short)],curColDate.c_str(),curColDate.length());
-											memcpy(&newData[updatePos+sizeof(short)+(8*sizeof(char))],curColTime.c_str(),curColTime.length());
+											string curColDate = ((q->ins[c2]).d)->date;
+											string curColTime = ((q->ins[c2]).d)->time;
+											memcpy(&newDataPos[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newDataPos[updatePos+sizeof(short)],curColDate.c_str(),curColDate.length());
+											memcpy(&newDataPos[updatePos+sizeof(short)+(8*sizeof(char))],curColTime.c_str(),curColTime.length());
+											for(int c3=0;c3<(sizeof(short)+curColDate.length()+curColTime.length());c3++)
+												curUpdateString[c3] = curUpdateString[c3]+newDataPos[c3];
 											toModifyValues[curColCount] = curColDate+curColTime;
+											curUpdatePos = sizeof(short)+curColDate.length()+curColTime.length();
 										}
 										break;
 									}
 								}
-								updatePos = updatePos+sizeof(short);
 								if(modifiedFlag == false)
 								{
 									// No data change
-									memcpy(&newData[updatePos],&dataBuffer[updatePos],charLength);
+									// Check if field is of varchar type
+									if(strncmp(modifyDataType.c_str(),"VARCHAR$",8) == 0)
+									{
+										short offset;
+										memcpy(&offset,&dataBuffer[updatePos],sizeof(short));
+										char * newvarchardataPos = new char [sizeof(short)+offset];
+										memcpy(newvarchardataPos,&dataBuffer[updatePos],sizeof(short)+modifyColumnLength);
+										for(short c4=0;c4<sizeof(short)+offset;c4++)
+											curUpdateString[c4] = curUpdateString[c4]+newvarchardataPos[c4];
+										curUpdatePos = sizeof(short)+offset;
+										delete newvarchardataPos;
+									}
+									else
+									{
+										memcpy(&newDataPos[updatePos],&dataBuffer[updatePos],sizeof(short)+modifyColumnLength);
+										for(int c3=0;c3<(sizeof(short)+modifyColumnLength);c3++)
+												curUpdateString[c3] = curUpdateString[c3]+newDataPos[c3];
+										curUpdatePos = sizeof(short)+modifyColumnLength;
+									}
+									updateString = updateString + curUpdateString;
 								}
-								updatePos = updatePos+charLength;
+								else
+								{
+									updateString = updateString + curUpdateString;
+								}
+								updatePos = curUpdatePos;
 								delete newDataPos;
 							}
 							if(isTableDynamic == true)
@@ -4372,6 +4590,44 @@ int DB::updateEntry(query q)
 								tfs = tfs + slotSize;
 								slotSize = (-1)*slotSize;
 								memcpy(&dataPageBuffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-(j+1)*sizeof(int)],&slotSize,sizeof(int));
+								* oldSlotID = (j+1);
+								* oldDataPageID = curDataPage->getPageID();
+								char * newInsertData = new char [updateString.length()];
+								for(short c5 = 0;c5<updateString.length();c5++)
+									newInsertData[c5] = updateString[c5];
+								bool * noOfPagesChanged;
+								int resInsert = insertDataBaseEntry(dirPageEntry,newInsertData,noOfPagesChanged,newSlotID,newDataPageID);
+								if(*noOfPagesChanged == true)
+								{
+									memcpy(newEntryBuff,&sysTabBuffer[0+((entryPosition-1)*SYSTABLEENTRYSIZE)],SYSTABLEENTRYSIZE);
+
+									newSysTablesEntry.getDataBuffer(newEntryBuff);
+									noOfPages = noOfPages + 1;
+									newSysTablesEntry.setNoPages(noOfPages);
+									newSysTablesEntry.fillBuffer(newEntryBuff);
+									memcpy(&sysTabBuffer[0+((entryPosition-1)*SYSTABLEENTRYSIZE)],newEntryBuff,SYSTABLEENTRYSIZE);
+
+									bool retWriteDB = (*bu).writeDB(fdID,entryPage,(PagePriority)(priority),sysTabBuffer);
+									if(retWriteDB == false)
+									{
+										// Unable to write the buffer
+										// Return error
+										delete sysTabBuffer;
+										delete deBuf;
+										delete dataBuffer;
+										delete newData;
+										delete directoryPage;
+										delete newDirectoryPageEntry;
+										delete entryBuffer;
+										delete dataPageBuffer;
+										delete [] dataTypes;
+										delete [] columnNames;
+										delete ordinalPositions;
+										delete scales;
+										delete columnLengths;
+										return DATABASEWRITEDBERROR;
+									}
+								}
 							}
 							else
 							{
@@ -4414,7 +4670,7 @@ int DB::updateEntry(query q)
 							delete ordinalPositions;
 							delete scales;
 							delete columnLengths;
-							return toBeDeleted;
+							return toBeModified;
 						}
 						delete dataBuffer;
 					}
@@ -4474,7 +4730,8 @@ int DB::updateEntry(query q)
 	delete ordinalPositions;
 	delete scales;
 	delete columnLengths;
-*/
+
+	return results;
 }
 
 int DB::alterTable(query q)
@@ -4496,10 +4753,431 @@ int DB::selectEntry(query q)
 	// Be careful about the logic for this
 	// If $ or #'s are present replace with '\0'
 	// Give column delimiters for the entries
+
+	string debugMessage;
+	bool retWriteLog;
+
+	string tableName = q->table;
+
+	string dbName;
+	int results = 0;
+
+	BufferManager *bu = BufferManager::getBufferManager();
+	short priority = 3;
+	bool retReadDB;
+
+	// To get the dbName, have to read the DBHeader
+	char * dbBuff = new char [_pageSize];
+	retReadDB = (*bu).readDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbBuff);
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		return DATABASEREADDBERROR;
+	}
+	DBHeader * curDBHeader = new DBHeader(dbBuff,_pageSize);
+	dbName = curDBHeader->getDatabaseName();
+	delete curDBHeader;
+	delete dbBuff;
+
+	// Check whether table exists
+	int nextSysTabPointer = _sysTablesPTR, nextSysColumnsPointer = _sysColumnsPTR;
+	int curSysTabPointer = -1,curSysColsPointer = -1;
+		
+	int entryPosition = -1,entryPage = -1;
+
+	while(nextSysTabPointer != -1)
+	{
+		char * curSysTabBuffer = new char [_pageSize];
+		// Read the file to the buffer
+		retReadDB = (*bu).readDB(fdID,nextSysTabPointer,(PagePriority)(priority),curSysTabBuffer);
+		if(retReadDB == false)
+		{
+			// Unable to read the buffer
+			// Return error
+			delete curSysTabBuffer;
+			return DATABASEREADDBERROR;
+		}
+		SysTables * curSysTable = new SysTables(curSysTabBuffer,_pageSize);
+		curSysTabPointer = nextSysTabPointer;
+		nextSysTabPointer = curSysTable->getnextSysTablePage();
+		entryPosition = curSysTable->searchSysTableEntry(tableName,dbName,curSysTabBuffer);
+		if(entryPosition != -1)
+		{
+			entryPage = curSysTabPointer;
+			delete curSysTable;
+			delete curSysTabBuffer;
+			break;
+		}
+		delete curSysTable;
+		delete curSysTabBuffer;
+	}
+
+	if(entryPage == -1)
+	{
+		// Table name not found error
+		return DELETETABLETBLNOTFOUNDERROR;
+	}
+
+	char * sysTabBuffer = new char [_pageSize];
+	retReadDB = (*bu).readDB(fdID,entryPage,(PagePriority)(priority),sysTabBuffer);
+	if(retReadDB == false)
+	{
+		// Unable to read the buffer
+		// Return error
+		delete sysTabBuffer;
+		return DATABASEREADDBERROR;
+	}
+
+	char * newEntryBuff = new char [SYSTABLEENTRYSIZE];
+	memcpy(newEntryBuff,&sysTabBuffer[0+((entryPosition-1)*SYSTABLEENTRYSIZE)],SYSTABLEENTRYSIZE);
+
+	SysTableEntry newSysTablesEntry;
+	newSysTablesEntry.getDataBuffer(newEntryBuff);
+
+	delete newEntryBuff;
+	delete sysTabBuffer;
+
+	int recordLength = newSysTablesEntry.getRecLength();
+	short keyCols = newSysTablesEntry.getKeyColumns();
+	short colCount = newSysTablesEntry.getColCount();
+	int noOfRows = newSysTablesEntry.getTableRows();
+	int dirPageEntry = newSysTablesEntry.getDirectoryPagePointer();
+	int noOfPages = newSysTablesEntry.getNoPages();
+	bool isTableDynamic = false;
+	if(newSysTablesEntry.getRowFormat() != 'F')
+		isTableDynamic = true;
+
+	string * dataTypes = new string [colCount];
+	string * columnNames = new string [colCount];
+	int * ordinalPositions = new int [colCount];
+	int * columnLengths = new int [colCount];
+	short * scales = new short [colCount];
+
+	int * oldSlotID = new int [1];
+	int * newSlotID = new int [1];
+	int * oldDataPageID = new int [1];
+	int * newDataPageID = new int [1];
+
+	short curColCount;
+	for(curColCount = 0;curColCount<colCount;curColCount++)
+	{
+		// Get the SysColumns entry for the column at curColCount position
+		char * curSysColBuff = new char [_pageSize];
+		while(nextSysColumnsPointer != -1)
+		{
+			retReadDB = (*bu).readDB(fdID,nextSysColumnsPointer,(PagePriority)(priority),curSysColBuff);
+			if(retReadDB == false)
+			{
+				// Unable to read the buffer
+				// Return error
+				delete curSysColBuff;
+				delete [] dataTypes;
+				delete [] columnNames;
+				delete ordinalPositions;
+				delete scales;
+				delete columnLengths;
+				return DATABASEREADDBERROR;
+			}
+			SysColumns * curSysColumns = new SysColumns(curSysColBuff,_pageSize);
+			curSysColsPointer = nextSysColumnsPointer;
+			nextSysColumnsPointer = curSysColumns->getnextSysColumnsPage();
+
+			int resSearchSysCols = curSysColumns->searchSysColumnEntry(curColCount,tableName,curSysColBuff);
+			if(resSearchSysCols > 0)
+			{
+				char * curSysColumnsEntry = new char [SYSCOLUMNENTRYSIZE];
+				memcpy(curSysColumnsEntry,&curSysColBuff[0+((resSearchSysCols-1)*SYSCOLUMNENTRYSIZE)],SYSCOLUMNENTRYSIZE);
+				SysColumnsEntry curEntry;
+				curEntry.getDataBuffer(curSysColumnsEntry);
+				columnNames[curColCount] = curEntry.getColumnName();
+				dataTypes[curColCount] = curEntry.getColumnName();
+				ordinalPositions[curColCount] = curEntry.getOrdinalPosition();
+				columnLengths[curColCount] = curEntry.getLength();
+				scales[curColCount] = curEntry.getScale();
+				delete curSysColumnsEntry;
+			}
+			delete curSysColumns;
+		}
+		delete curSysColBuff;
+	}
+
+	int nextPTR = dirPageEntry;
+	int curPTR = -1;
+
+	q->cntColumns = curColCount;
+	q->results = new char * [150];
+	for(int countRes = 0;countRes<150;countRes++)
+		q->results[countRes] = new char [recordLength+(curColCount*4)];
+
+	bool lastDataPageIDSet = false;
+
+	int countRes = 0;
+
+	while(nextPTR != -1)
+	{
+		char * deBuf = new char [_pageSize];
+		short dirPagePriority = 2,dataPagePriority = 1;
+		bool retReadDB,retWriteDB;
+		//int res = pageRead(fileName,nextPTR,deBuf,_pageSize);
+		retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(dirPagePriority),deBuf);
+		if(retReadDB == false)
+		{
+			// Unable to read the buffer
+			// Return error
+			delete deBuf;
+			delete [] dataTypes;
+			delete [] columnNames;
+			delete ordinalPositions;
+			delete scales;
+			delete columnLengths;
+			return DATABASEREADDBERROR;
+		}
+		DirectoryPage * directoryPage = new DirectoryPage(deBuf,_pageSize);
+		curPTR = nextPTR;
+		nextPTR = directoryPage->getNextDirectoryPagePointer();
+		int noOfEntries = directoryPage->getNoE();
+		if(noOfEntries == 0)
+		{
+			if(debugFlag == true)
+			{
+				debugMessage = "There are no entries in this page for data page "+curPTR;
+				retWriteLog = writeLog(debugMessage);
+			}
+		}
+
+		for(int i = 0;i < noOfEntries;i++)
+		{
+			int resCount = 0;
+			char * entryBuffer = new char [DESIZE];
+			memcpy(entryBuffer,&deBuf[0+i*DESIZE],DESIZE);
+			DirectoryPageEntry * newDirectoryPageEntry = new DirectoryPageEntry(entryBuffer);
+			int pageID = newDirectoryPageEntry->getPageID();
+			int tfs = newDirectoryPageEntry->getTFS();
+			char * dataPageBuffer = new char [_pageSize];
+			//res = pageRead(fileName,pageID,dataPageBuffer,_pageSize);
+			retReadDB = (*bu).readDB(fdID,pageID,(PagePriority)(dataPagePriority),dataPageBuffer);
+			if(retReadDB == false)
+			{
+				// Unable to read the buffer
+				// Return error
+				delete deBuf;
+				delete directoryPage;
+				delete newDirectoryPageEntry;
+				delete entryBuffer;
+				delete dataPageBuffer;
+				delete [] dataTypes;
+				delete [] columnNames;
+				delete ordinalPositions;
+				delete scales;
+				delete columnLengths;
+				return DATABASEREADDBERROR;
+			}
+			DataPage * curDataPage = new DataPage(dataPageBuffer,_pageSize);
+			int noOfSlots = curDataPage->getslotCounter();
+			if(noOfSlots == 0)
+			{
+				if(debugFlag == true)
+				{
+					debugMessage = "There are no entries in this data page"+pageID;
+					retWriteLog = writeLog(debugMessage);
+				}
+			}
+			else
+			{
+				for(int j = 0;j<noOfSlots;j++)
+				{
+					int slotSize;
+					long slotPointer;
+					memcpy(&slotPointer,&dataPageBuffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-j*sizeof(int)],sizeof(long));
+					memcpy(&slotSize,&dataPageBuffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-(j+1)*sizeof(int)],sizeof(int));
+					if(slotSize<0)
+					{
+						// Slot has been already deleted....
+						// No need to delete.....
+						continue;
+					}
+					else
+					{
+						char * dataBuffer = new char [slotSize];
+						memcpy(dataBuffer,&dataPageBuffer[slotPointer],slotSize);
+
+						bool * selected = new bool [1];
+
+						int toBeSelected = queryEvaluate(dataBuffer,q,columnNames,dataTypes,ordinalPositions,scales,columnLengths,selected);
+
+						if(*selected == true)
+						{
+							resCount++;
+							string selectedString;
+							int selectPos = 0;
+							for(short curColCount = 0;curColCount<colCount;curColCount++)
+							{
+								short offset;
+								string currentString;
+								memcpy(&offset,&dataBuffer[selectPos],sizeof(short));
+								if(strncmp(dataTypes[curColCount].c_str(),"VARCHAR$",8) == 0)
+								{
+									// Field is a varchar
+									int length;
+									memcpy(&length,&dataBuffer[selectPos+sizeof(short)],sizeof(int));
+									for(int curLength = 0;curLength<length;curLength++)
+										currentString = currentString + dataBuffer[selectPos+sizeof(short)+sizeof(int)+curLength];
+								}
+								else if(strncmp(dataTypes[curColCount].c_str(),"CHAR$$$$",8) == 0)
+								{
+									for(int curLength = 0;curLength<columnLengths[curColCount];curLength++)
+										currentString = currentString + dataBuffer[selectPos+sizeof(short)+sizeof(int)+curLength];
+								}
+								else
+								{
+									string currentTestString;
+									for(int curLength = 0;curLength<columnLengths[curColCount];curLength++)
+										currentTestString = currentTestString + dataBuffer[selectPos+sizeof(short)+sizeof(int)+curLength];
+									if(strncmp(dataTypes[curColCount].c_str(),"INT$$$$$",8) == 0 || strncmp(dataTypes[curColCount].c_str(),"UINT$$$$",8) == 0)
+									{
+										int curInt = atoi(currentTestString.c_str());
+										currentString = curInt;
+									}
+									else if(strncmp(dataTypes[curColCount].c_str(),"SMALLINT",8) == 0 || strncmp(dataTypes[curColCount].c_str(),"USMALL$$",8) == 0)
+									{
+										short curShort = atoi(currentTestString.c_str());
+										currentString = curShort;
+									}
+									else if(strncmp(dataTypes[curColCount].c_str(),"BIGINT$$",8) == 0 || strncmp(dataTypes[curColCount].c_str(),"UBIG$$$$",8) == 0)
+									{
+										long curLong = atol(currentTestString.c_str());
+										currentString = curLong;
+									}
+									else if(strncmp(dataTypes[curColCount].c_str(),"FLOAT$$$",8) == 0)
+									{
+										float curFloat = atof(currentTestString.c_str());
+										currentString = curFloat;
+									}
+									else if(strncmp(dataTypes[curColCount].c_str(),"DOUBLE$$",8) == 0)
+									{
+										double curDouble = atof(currentTestString.c_str());
+										currentString = curDouble;
+									}
+									else if(strncmp(dataTypes[curColCount].c_str(),"DATE$$$$",8) == 0)
+									{
+										Date curDate = Date((char *)currentTestString.c_str());
+										currentString = curDate.toString();
+									}
+									else if(strncmp(dataTypes[curColCount].c_str(),"TIME$$$$",8) == 0)
+									{
+										Time curTime = Time((char *)currentTestString.c_str());
+										currentString = curTime.toString();
+									}
+									else if(strncmp(dataTypes[curColCount].c_str(),"DATETIME",8) == 0)
+									{
+										DateTime curDateTime = DateTime((char *)currentTestString.c_str());
+										currentString = curDateTime.toString();
+									}
+								}
+								selectedString = selectedString+currentString;
+								selectedString = selectedString+"||||";
+							}
+							if(countRes < 150)
+							{
+								for(int countSSt = 0;countSSt < selectedString.length();countSSt++)
+									q->results[countRes][countSSt] = selectedString[countSSt];
+								countRes++;
+							}
+							else if(countRes == 150 && lastDataPageIDSet == false)
+							{
+								lastDataPageIDSet = true;
+								q->dataPageNo = curDataPage->getPageID();
+								q->dataSlotID = j;
+								q->dirPageNo = curPTR;
+								q->slotID = i;
+							}
+						}
+					}
+				}
+			}
+			delete curDataPage;
+			delete dataPageBuffer;
+			results = results + resCount;
+		}
+		delete directoryPage;
+		delete deBuf;
+	}
+
+	delete [] dataTypes;
+	delete [] columnNames;
+	delete ordinalPositions;
+	delete scales;
+	delete columnLengths;
+
+	return results;
 }
 
 int DB::showTables(query q)
 {
 	// For show tables command
+
+	int nextSysTabPointer = _sysTablesPTR, nextSysColumnsPointer = _sysColumnsPTR;
+	int curSysTabPointer = -1,curSysColsPointer = -1,i,j;
+	string tableName = q->table; // get first table name
+
+	BufferManager *bu = BufferManager::getBufferManager();
+	char * dbheaderBuff = new char [_pageSize];
+	short priority = 3;
+	bool retReadDB;
+	retReadDB = (*bu).readDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbheaderBuff);
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbheaderBuff;
+		return DATABASEREADDBERROR;
+	}
+	DBHeader * dbHeader = new DBHeader(dbheaderBuff,_pageSize);
+	string dbName = dbHeader->getDatabaseName();
+	delete dbHeader;
+	delete dbheaderBuff;
+
+	vector <string> tableNames;
+	while(nextSysTabPointer != -1)
+	{
+		char * curSysTabBuffer = new char [_pageSize];
+		// Read the file to the buffer
+		retReadDB = (*bu).readDB(fdID,nextSysTabPointer,(PagePriority)(priority),curSysTabBuffer);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete curSysTabBuffer;
+			return DATABASEREADDBERROR;
+		}
+		SysTables * curSysTable = new SysTables(curSysTabBuffer,_pageSize);
+		curSysTabPointer = nextSysTabPointer;
+		nextSysTabPointer = curSysTable->getnextSysTablePage();
+		int noOfEntries = curSysTable->getNoOfEntries();
+		for(int entryPos = 0;entryPos<noOfEntries;entryPos++)
+		{
+			char * sysEntryBuff = new char [SYSTABLEENTRYSIZE];
+			memcpy(sysEntryBuff,&curSysTabBuffer[0+(entryPos*SYSTABLEENTRYSIZE)],SYSTABLEENTRYSIZE);
+			SysTableEntry curEntry = SysTableEntry();
+			curEntry.getDataBuffer(sysEntryBuff);
+			if(dbName == curEntry.getDBName())
+				tableNames.push_back(curEntry.getTableName());
+			delete sysEntryBuff;
+		}
+		delete curSysTable;
+		delete curSysTabBuffer;
+	}
+
+	q->cntColumns = tableNames.size();
+	q->results = new char * [tableNames.size()];
+	for(int countRes = 0;countRes<(tableNames.size());countRes++)
+		q->results[countRes] = new char [255];
+
+	for(int countRes = 0;countRes<(tableNames.size());countRes++)
+		q->results[countRes] = (char *) tableNames[countRes].c_str();
+
+	return tableNames.size();
 }
 
