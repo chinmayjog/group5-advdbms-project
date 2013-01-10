@@ -25,7 +25,7 @@ void initCache(BufferManager *bu){
 
 void createDB(BufferManager *bu){
 	string filename;
-	string filepath = "data/";
+	
 	int size;
 	cout<<"\n Enter the database name: ";
 	cin>>filename;
@@ -42,7 +42,7 @@ void createDB(BufferManager *bu){
 
 void openDB(BufferManager *bu){
 	string filename;
-	string filepath = "data/";
+	
 	cout<<"\n Enter the database name: ";
 	cin>>filename;
 	int errcode = (*bu).openDB(filepath, filename);
@@ -126,7 +126,7 @@ void closeDB(BufferManager *bu){
 
 void dropDB(BufferManager *bu){
 	string filename;
-	string filepath = "data/";
+	
 	cout<<"\n Enter the database name: ";
 	cin>>filename;
 	int errcode = (*bu).dropDB(filepath, filename);
