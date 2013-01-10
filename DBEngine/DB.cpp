@@ -4,6 +4,123 @@
 #include"DB.h"
 //#include"FileHandling.cpp"
 
+int mainDB(DB * curDB,query q)
+{
+	string queryType = q->type;
+	int curPageSize = curDB->getPageSize();
+	BufferManager *bu = BufferManager::getBufferManager();
+	int cachePageSize = (*bu).getPageSize();
+	if(strcmp(queryType.c_str(),"CREATEDB") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			fdID = -1;
+		}
+		return curDB->createDB(q);
+	}
+	else if(strcmp(queryType.c_str(),"USEDB") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			fdID = -1;
+		}
+		return curDB->useDB(q);
+	}
+	else if(strcmp(queryType.c_str(),"DROPDB") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			fdID = -1;
+		}
+		return curDB->dropDB(q);
+	}
+	else if(strcmp(queryType.c_str(),"SHOWDB") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			fdID = -1;
+		}
+		return curDB->showDB(q);
+	}
+	else if(strcmp(queryType.c_str(),"SHOWTBL") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			fdID = -1;
+		}
+		return curDB->showTables(q);
+	}
+	else if(strcmp(queryType.c_str(),"CREATETBL") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
+		return curDB->createTable(q);
+	}
+	else if(strcmp(queryType.c_str(),"CREATEIND") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
+		return curDB->createIndex(q);
+	}
+	else if(strcmp(queryType.c_str(),"DROPIND") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
+		return curDB->dropIndex(q);
+	}
+	else if(strcmp(queryType.c_str(),"INSERT") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
+		return curDB->insertEntry(q);
+	}
+	else if(strcmp(queryType.c_str(),"DELETE") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
+		return curDB->deleteEntry(q);
+	}
+	else if(strcmp(queryType.c_str(),"UPDATE") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
+		return curDB->updateEntry(q);
+	}
+	else if(strcmp(queryType.c_str(),"SELECT") == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
+		return curDB->selectEntry(q);
+	}
+	else if(strncmp(queryType.c_str(),"ALTER",5) == 0)
+	{
+		if(fdID != -1 && cachePageSize != curPageSize)
+		{
+			return CACHEPAGESIZEERROR;
+		}
+		return curDB->selectEntry(q);
+	}
+	else
+	{
+		// Query is either not supported or is wrong
+		return QUERYUNSUPPORTEDERROR;
+	}
+}
+
 int DB::getDBHeaderPTR()
 {
 	return _dbHeaderPTR;
@@ -233,123 +350,6 @@ int DB::extendFreeSpace()
 	return _lastFreePagePTR;
 }
 
-int DB::mainDB(DB * curDB,query q)
-{
-	string queryType = q->type;
-	int curPageSize = curDB->getPageSize();
-	BufferManager *bu = BufferManager::getBufferManager();
-	int cachePageSize = (*bu).getPageSize();
-	if(strcmp(queryType.c_str(),"CREATEDB") == 0)
-	{
-		if(fdID != -1 && cachePageSize != curPageSize)
-		{
-			fdID = -1;
-		}
-		return curDB->createDB(q);
-	}
-	else if(strcmp(queryType.c_str(),"USEDB") == 0)
-	{
-		if(fdID != -1 && cachePageSize != curPageSize)
-		{
-			fdID = -1;
-		}
-		return curDB->useDB(q);
-	}
-	else if(strcmp(queryType.c_str(),"DROPDB") == 0)
-	{
-		if(fdID != -1 && cachePageSize != curPageSize)
-		{
-			fdID = -1;
-		}
-		return curDB->dropDB(q);
-	}
-	else if(strcmp(queryType.c_str(),"SHOWDB") == 0)
-	{
-		if(fdID != -1 && cachePageSize != curPageSize)
-		{
-			fdID = -1;
-		}
-		return curDB->showDB(q);
-	}
-	else if(strcmp(queryType.c_str(),"SHOWTBL") == 0)
-	{
-		if(fdID != -1 && cachePageSize != curPageSize)
-		{
-			fdID = -1;
-		}
-		return curDB->showTables(q);
-	}
-	else if(strcmp(queryType.c_str(),"CREATETBL") == 0)
-	{
-		if(fdID != -1 && cachePageSize != curPageSize)
-		{
-			return CACHEPAGESIZEERROR;
-		}
-		return curDB->createTable(q);
-	}
-	else if(strcmp(queryType.c_str(),"CREATEIND") == 0)
-	{
-		if(fdID != -1 && cachePageSize != curPageSize)
-		{
-			return CACHEPAGESIZEERROR;
-		}
-		return curDB->createIndex(q);
-	}
-	else if(strcmp(queryType.c_str(),"DROPIND") == 0)
-	{
-		if(fdID != -1 && cachePageSize != curPageSize)
-		{
-			return CACHEPAGESIZEERROR;
-		}
-		return curDB->dropIndex(q);
-	}
-	else if(strcmp(queryType.c_str(),"INSERT") == 0)
-	{
-		if(fdID != -1 && cachePageSize != curPageSize)
-		{
-			return CACHEPAGESIZEERROR;
-		}
-		return curDB->insertEntry(q);
-	}
-	else if(strcmp(queryType.c_str(),"DELETE") == 0)
-	{
-		if(fdID != -1 && cachePageSize != curPageSize)
-		{
-			return CACHEPAGESIZEERROR;
-		}
-		return curDB->deleteEntry(q);
-	}
-	else if(strcmp(queryType.c_str(),"UPDATE") == 0)
-	{
-		if(fdID != -1 && cachePageSize != curPageSize)
-		{
-			return CACHEPAGESIZEERROR;
-		}
-		return curDB->updateEntry(q);
-	}
-	else if(strcmp(queryType.c_str(),"SELECT") == 0)
-	{
-		if(fdID != -1 && cachePageSize != curPageSize)
-		{
-			return CACHEPAGESIZEERROR;
-		}
-		return curDB->selectEntry(q);
-	}
-	else if(strncmp(queryType.c_str(),"ALTER",5) == 0)
-	{
-		if(fdID != -1 && cachePageSize != curPageSize)
-		{
-			return CACHEPAGESIZEERROR;
-		}
-		return curDB->selectEntry(q);
-	}
-	else
-	{
-		// Query is either not supported or is wrong
-		return QUERYUNSUPPORTEDERROR;
-	}
-}
-
 int DB::queryEvaluate(char * data,query q,string * columnNames,string * dataTypes,int * ordinalPositions,short * scales,int * columnLengths,bool *result)
 {
 	condition * conditionTree = q->root;
@@ -447,7 +447,7 @@ int DB::queryEvaluate(char * data,query q,string * columnNames,string * dataType
 					}
 				}
 			}
-			delete columnValueToCheck;
+			delete [] columnValueToCheck;
 		}
 		else if(q->root->cond == LIKEC)
 		{
@@ -1417,7 +1417,7 @@ int DB::createNewDirectoryPageEntry(int directoryPageID,int newDataPageID,int tf
 	return resultID;
 }
 
-int DB::insertDataBaseEntry(int directoryPageID,char *dataBuffer,bool *noOfPagesChanged)
+int DB::insertDataBaseEntry(int directoryPageID,char *dataBuffer,bool *noOfPagesChanged,int *InsertedDataPageID,int *InsertedSlotID)
 {
 	int nextPTR = directoryPageID;
 	int curPTR = -1;
@@ -1517,7 +1517,7 @@ int DB::insertDataBaseEntry(int directoryPageID,char *dataBuffer,bool *noOfPages
 						return DATABASEREADDBERROR;
 					}
 					DataPage * newDataPage1 = new DataPage(dataPageBuf,_pageSize);
-					int inserted1 = newDataPage1->insertData(dataPageBuf,dataBuffer,dataSize);
+					int inserted1 = newDataPage1->insertData(dataPageBuf,dataBuffer,dataSize,InsertedSlotID);
 					if(inserted1 == -1)
 					{
 						if(debugFlag == true)
@@ -1529,6 +1529,7 @@ int DB::insertDataBaseEntry(int directoryPageID,char *dataBuffer,bool *noOfPages
 					}
 					else
 					{
+						*InsertedDataPageID = newDataPage1->getPageID();
 						if(debugFlag == true)
 						{
 							debugMessage = "Data was inserted to the data page "+dirPageEntry->getPageID();
@@ -2285,7 +2286,9 @@ int DB::useDB(query q)
 	    	pageSz = digit+pageSz;
 		tempPageSize = tempPageSize/10;
 	}
+	fileName = fileName+"_";
 	fileName = fileName+pageSz;
+	fileName = fileName+".dat";
 	fdID = (*bu).openDB(filePath,fileName);
 	if(fdID < 0)
 	{
@@ -2334,6 +2337,7 @@ int DB::useDB(query q)
 		}
 		SysTables * curSysTables = new SysTables(sysTabBuff,pageSize);
 		_noSysTablePages++;
+		nextPTR = curSysTables->getnextSysTablePage();
 		int noOfEntries = curSysTables->getNoOfEntries();
 
 		if(noOfEntries != 0)
@@ -2388,7 +2392,10 @@ int DB::useDB(query q)
 			delete sysColBuff;
 			return DATABASEREADDBERROR;
 		}
+		SysColumns * curSysColumns = new SysColumns(sysColBuff,pageSize);
 		_noSysColumnPages++;
+		nextPTR = curSysColumns->getnextSysColumnsPage();
+		delete curSysColumns;
 	}
 
 	delete sysColBuff;
@@ -2407,7 +2414,10 @@ int DB::useDB(query q)
 			delete sysIndexBuff;
 			return DATABASEREADDBERROR;
 		}
+		SysIndex * curSysIndex = new SysIndex(sysIndexBuff,pageSize);
 		_noSysIndexPages++;
+		nextPTR = curSysIndex->getNextSysIndexPage();
+		delete curSysIndex;
 		// Decide whether to read in the index or not
 	}
 
@@ -2524,7 +2534,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 	delete dbheaderBuff;
 
 	char rowFormat = 'F',encodingScheme = 'A',tableType='T';
-	unsigned short dataLength,recLength;
+	unsigned short dataLength=0,recLength=0;
 	int dirPagePointer,tableRows = 0,noOfPages = 0;
 	short charLength;
 	string remarks;
@@ -2580,15 +2590,15 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 			short dataTypeID = retDataTypeID((q->columns[i]).type);
 			curDataLength = retDataTypeSize(dataTypeID,charLength);
 			if(strcmp((q->columns[i]).type,"VARCHAR$")==0)
-				curRecordLength = curDataLength + sizeof(short);
+				curRecordLength = curDataLength + sizeof(int) + sizeof(short);
 			else
-				curRecordLength = curDataLength;
+				curRecordLength = curDataLength + sizeof(short);
 		}
 		else
 		{
 			short dataTypeID = retDataTypeID((q->columns[i]).type);
 			curDataLength = retDataTypeSize(dataTypeID,1);
-			curRecordLength = curDataLength;
+			curRecordLength = curDataLength + sizeof(short);
 		}
 		dataLength += curDataLength,recLength += curRecordLength;
 	}
@@ -2632,14 +2642,16 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 		string col_default;
 		int curRecordLength=0,curDataLength = 0;
 		// get the default value for the column, if default is not set, get the default values from DataTypes.cpp file
-		if(strncmp((q->columns[i]).type,"VARCHAR$",8)==0 || strncmp((q->columns[i]).type,"CHAR$$$$",8)==0)
+		/*if(strncmp((q->columns[i]).type,"VARCHAR$",8)==0 || strncmp((q->columns[i]).type,"CHAR$$$$",8)==0)
 		{
 			col_default = getDefaultValue(dataType,(q->columns[i]).sizeofField1);
 		}
 		else
 		{
 			col_default = getDefaultValue(dataType,1);
-		}
+		}*/
+		for(int i2 = 0;i2 < 256;i2++)
+			col_default += '\0';
 
 		// Getting the Record length
 		if(strncmp((q->columns[i]).type,"VARCHAR$",8)==0 || strncmp((q->columns[i]).type,"CHAR$$$$",8)==0)
@@ -2680,7 +2692,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 				char * defString = new char [256];
 				
 				for(int charCount = 0;charCount<256;charCount++)
-					defString[charCount] = '$';
+					defString[charCount] = '\0';
 				memcpy(defString,&DefaultInt,sizeof(int));
 				for(int charCount = 0;charCount<256;charCount++)
 					newColDefault = newColDefault + defString[charCount];
@@ -2693,7 +2705,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 				char * defString = new char [256];
 				
 				for(int charCount = 0;charCount<256;charCount++)
-					defString[charCount] = '$';
+					defString[charCount] = '\0';
 				memcpy(defString,&DefaultShort,sizeof(short));
 				for(int charCount = 0;charCount<256;charCount++)
 					newColDefault = newColDefault + defString[charCount];
@@ -2706,7 +2718,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 				char * defString = new char [256];
 				
 				for(int charCount = 0;charCount<256;charCount++)
-					defString[charCount] = '$';
+					defString[charCount] = '\0';
 				memcpy(defString,&DefaultLong,sizeof(long));
 				for(int charCount = 0;charCount<256;charCount++)
 					newColDefault = newColDefault + defString[charCount];
@@ -2719,7 +2731,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 				char * defString = new char [256];
 				
 				for(int charCount = 0;charCount<256;charCount++)
-					defString[charCount] = '$';
+					defString[charCount] = '\0';
 				for(int charCount = 0;charCount<defStr.length();charCount++)
 					defString[charCount] = defStr[charCount];
 				for(int charCount = 0;charCount<256;charCount++)
@@ -2734,7 +2746,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 				char * defString = new char [256];
 				
 				for(int charCount = 0;charCount<256;charCount++)
-					defString[charCount] = '$';
+					defString[charCount] = '\0';
 				memcpy(defString,&DefaultFloat,sizeof(float));
 				for(int charCount = 0;charCount<256;charCount++)
 					newColDefault = newColDefault + defString[charCount];
@@ -2748,7 +2760,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 				char * defString = new char [256];
 				
 				for(int charCount = 0;charCount<256;charCount++)
-					defString[charCount] = '$';
+					defString[charCount] = '\0';
 				memcpy(defString,&DefaultDouble,sizeof(double));
 				for(int charCount = 0;charCount<256;charCount++)
 					newColDefault = newColDefault + defString[charCount];
@@ -2760,7 +2772,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 				char * defString = new char [256];
 				
 				for(int charCount = 0;charCount<256;charCount++)
-					defString[charCount] = '$';
+					defString[charCount] = '\0';
 				for(int charCount = 0;charCount<8;charCount++)
 					defString[charCount] = (q->columns[i]).defaultdate.date[charCount];
 				for(int charCount = 0;charCount<256;charCount++)
@@ -2773,7 +2785,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 				char * defString = new char [256];
 				
 				for(int charCount = 0;charCount<256;charCount++)
-					defString[charCount] = '$';
+					defString[charCount] = '\0';
 				for(int charCount = 0;charCount<6;charCount++)
 					defString[charCount] = (q->columns[i]).defaultdate.time[charCount];
 				for(int charCount = 0;charCount<256;charCount++)
@@ -2786,7 +2798,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 				char * defString = new char [256];
 				
 				for(int charCount = 0;charCount<256;charCount++)
-					defString[charCount] = '$';
+					defString[charCount] = '\0';
 				for(int charCount = 0;charCount<8;charCount++)
 					defString[charCount] = (q->columns[i]).defaultdate.date[charCount];
 				for(int charCount = 8;charCount<14;charCount++)
@@ -2803,7 +2815,12 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 		newSysColumnEntry.setColumnName((q->columns[i]).name);
 		newSysColumnEntry.setColumnDefault(col_default);
 		newSysColumnEntry.setDataType((q->columns[i]).type);
-		newSysColumnEntry.setRemarks(NULL);
+		string columnRemarks;
+		for(int i1=0;i1<256;i1++)
+		{
+			columnRemarks = columnRemarks + "$";
+		}
+		newSysColumnEntry.setRemarks(columnRemarks);
 		if((q->columns[i]).isNullable == 1)
 			newSysColumnEntry.setIsNullable('Y');
 		else
@@ -3054,7 +3071,7 @@ int DB::insertEntry(query q)
 		char * curSysColBuff = new char [_pageSize];
 		while(nextSysColumnsPointer != -1)
 		{
-			retReadDB = (*bu).readDB(fdID,nextSysColumnsPointer,(PagePriority)(priority),sysTabBuffer);
+			retReadDB = (*bu).readDB(fdID,nextSysColumnsPointer,(PagePriority)(priority),curSysColBuff);
 			if(retReadDB == false)
 			{
 				// Unable to read the buffer
@@ -3062,10 +3079,10 @@ int DB::insertEntry(query q)
 				delete curSysColBuff;
 				delete insertData;
 				delete insertDataFlags;
-				delete insertedValues;
-				delete defaultStrings;
-				delete columnNames;
-				delete dataTypes;
+				delete [] insertedValues;
+				delete [] defaultStrings;
+				delete [] columnNames;
+				delete [] dataTypes;
 				delete ordinalPositions;
 				delete isNullables;
 				delete genAttributes;
@@ -3119,7 +3136,7 @@ int DB::insertEntry(query q)
 			char * curSysColBuff = new char [_pageSize];
 			while(nextSysColumnsPointer != -1)
 			{
-				retReadDB = (*bu).readDB(fdID,nextSysColumnsPointer,(PagePriority)(priority),sysTabBuffer);
+				retReadDB = (*bu).readDB(fdID,nextSysColumnsPointer,(PagePriority)(priority),curSysColBuff);
 				if(retReadDB == false)
 				{
 					// Unable to read the buffer
@@ -3127,10 +3144,10 @@ int DB::insertEntry(query q)
 					delete curSysColBuff;
 					delete insertData;
 					delete insertDataFlags;
-					delete insertedValues;
-					delete defaultStrings;
-					delete columnNames;
-					delete dataTypes;
+					delete [] insertedValues;
+					delete [] defaultStrings;
+					delete [] columnNames;
+					delete [] dataTypes;
 					delete ordinalPositions;
 					delete isNullables;
 					delete genAttributes;
@@ -3162,10 +3179,10 @@ int DB::insertEntry(query q)
 						delete curSysColumns;
 						delete insertData;
 						delete insertDataFlags;
-						delete insertedValues;
-						delete defaultStrings;
-						delete columnNames;
-						delete dataTypes;
+						delete [] insertedValues;
+						delete [] defaultStrings;
+						delete [] columnNames;
+						delete [] dataTypes;
 						delete ordinalPositions;
 						delete isNullables;
 						delete genAttributes;
@@ -3194,6 +3211,8 @@ int DB::insertEntry(query q)
 						{
 							char * currentData = new char [columnLength+sizeof(short)];
 							short offset = columnLength;
+							for(int k1 = 0;k1<columnLength+sizeof(short);k1++)
+								currentData[k1] = '\0';
 							memcpy(&currentData[0],&offset,sizeof(short));
 							memcpy(&currentData[0+sizeof(short)],columnDefaultString.c_str(),columnLength);
 							memcpy(&insertData[insertPos],currentData,columnLength+sizeof(short));
@@ -3232,9 +3251,10 @@ int DB::insertEntry(query q)
 						delete curSysColumns;
 						delete insertData;
 						delete insertDataFlags;
-						delete defaultStrings;
-						delete columnNames;
-						delete dataTypes;
+						delete [] insertedValues;
+						delete [] defaultStrings;
+						delete [] columnNames;
+						delete [] dataTypes;
 						delete ordinalPositions;
 						delete isNullables;
 						delete genAttributes;
@@ -3312,7 +3332,7 @@ int DB::insertEntry(query q)
 					{
 						char * curData = new char [columnLength];
 						for(int j1 = 0;j1<columnLength;j1++)
-							curData[j1] = '$';
+							curData[j1] = '\0';
 						memcpy(curData,dataToInsert.c_str(),dataToInsert.length());
 						char * currentData = new char [columnLength+sizeof(short)];
 						short offset = columnLength;
@@ -3398,10 +3418,10 @@ int DB::insertEntry(query q)
 					delete curSysColumns;
 					delete insertData;
 					delete insertDataFlags;
-					delete insertedValues;
-					delete defaultStrings;
-					delete columnNames;
-					delete dataTypes;
+					delete [] insertedValues;
+					delete [] defaultStrings;
+					delete [] columnNames;
+					delete [] dataTypes;
 					delete ordinalPositions;
 					delete isNullables;
 					delete genAttributes;
@@ -3418,10 +3438,10 @@ int DB::insertEntry(query q)
 				delete curSysColumns;
 				delete insertData;
 				delete insertDataFlags;
-				delete insertedValues;
-				delete defaultStrings;
-				delete columnNames;
-				delete dataTypes;
+				delete [] insertedValues;
+				delete [] defaultStrings;
+				delete [] columnNames;
+				delete [] dataTypes;
 				delete ordinalPositions;
 				delete isNullables;
 				delete genAttributes;
@@ -3479,7 +3499,9 @@ int DB::insertEntry(query q)
 
 	bool * noOfPagesChanged = new bool [1];
 
-	int resultInsert = insertDataBaseEntry(dirPageEntry,insertData,noOfPagesChanged);
+	int *InsertedDataPageID,*InsertedSlotID;
+
+	int resultInsert = insertDataBaseEntry(dirPageEntry,insertData,noOfPagesChanged,InsertedDataPageID,InsertedSlotID);
 
 	// Change the no. of rows and no. of pages for the SysTables entry.
 	nextSysTabPointer = _sysTablesPTR;
@@ -3502,10 +3524,10 @@ int DB::insertEntry(query q)
 			delete insertData;
 			delete insertDataFlags;
 			delete noOfPagesChanged;
-			delete insertedValues;
-			delete defaultStrings;
-			delete columnNames;
-			delete dataTypes;
+			delete [] insertedValues;
+			delete [] defaultStrings;
+			delete [] columnNames;
+			delete [] dataTypes;
 			delete ordinalPositions;
 			delete isNullables;
 			delete genAttributes;
@@ -3551,10 +3573,10 @@ int DB::insertEntry(query q)
 				delete insertData;
 				delete insertDataFlags;
 				delete noOfPagesChanged;
-				delete insertedValues;
-				delete defaultStrings;
-				delete columnNames;
-				delete dataTypes;
+				delete [] insertedValues;
+				delete [] defaultStrings;
+				delete [] columnNames;
+				delete [] dataTypes;
 				delete ordinalPositions;
 				delete isNullables;
 				delete genAttributes;
@@ -3577,11 +3599,10 @@ int DB::insertEntry(query q)
 	delete insertData;
 	delete noOfPagesChanged;
 	delete insertDataFlags;
-	delete insertedValues;
-
-	delete defaultStrings;
-	delete columnNames;
-	delete dataTypes;
+	delete [] insertedValues;
+	delete [] defaultStrings;
+	delete [] columnNames;
+	delete [] dataTypes;
 	delete ordinalPositions;
 	delete isNullables;
 	delete genAttributes;
@@ -3720,8 +3741,8 @@ int DB::deleteEntry(query q)
 				// Unable to read the buffer
 				// Return error
 				delete curSysColBuff;
-				delete dataTypes;
-				delete columnNames;
+				delete [] dataTypes;
+				delete [] columnNames;
 				delete ordinalPositions;
 				delete scales;
 				delete columnLengths;
@@ -3765,8 +3786,8 @@ int DB::deleteEntry(query q)
 			// Unable to read the buffer
 			// Return error
 			delete deBuf;
-			delete dataTypes;
-			delete columnNames;
+			delete [] dataTypes;
+			delete [] columnNames;
 			delete ordinalPositions;
 			delete scales;
 			delete columnLengths;
@@ -3804,8 +3825,8 @@ int DB::deleteEntry(query q)
 				delete newDirectoryPageEntry;
 				delete entryBuffer;
 				delete dataPageBuffer;
-				delete dataTypes;
-				delete columnNames;
+				delete [] dataTypes;
+				delete [] columnNames;
 				delete ordinalPositions;
 				delete scales;
 				delete columnLengths;
@@ -3862,8 +3883,8 @@ int DB::deleteEntry(query q)
 							delete dataPageBuffer;
 							delete newDirectoryPageEntry;
 							delete entryBuffer;
-							delete dataTypes;
-							delete columnNames;
+							delete [] dataTypes;
+							delete [] columnNames;
 							delete ordinalPositions;
 							delete scales;
 							delete columnLengths;
@@ -3884,8 +3905,8 @@ int DB::deleteEntry(query q)
 					delete dataPageBuffer;
 					delete newDirectoryPageEntry;
 					delete entryBuffer;
-					delete dataTypes;
-					delete columnNames;
+					delete [] dataTypes;
+					delete [] columnNames;
 					delete ordinalPositions;
 					delete scales;
 					delete columnLengths;
@@ -3911,8 +3932,8 @@ int DB::deleteEntry(query q)
 			// Return error
 			delete deBuf;
 			delete directoryPage;
-			delete dataTypes;
-			delete columnNames;
+			delete [] dataTypes;
+			delete [] columnNames;
 			delete ordinalPositions;
 			delete scales;
 			delete columnLengths;
@@ -3922,8 +3943,8 @@ int DB::deleteEntry(query q)
 		delete deBuf;
 	}
 
-	delete dataTypes;
-	delete columnNames;
+	delete [] dataTypes;
+	delete [] columnNames;
 	delete ordinalPositions;
 	delete scales;
 	delete columnLengths;
@@ -3962,6 +3983,7 @@ int DB::deleteEntry(query q)
 
 int DB::updateEntry(query q)
 {
+/*
 	// For update command
 	// Index check required
 	// If varchar field is getting updated - delete and insert.....
@@ -3970,6 +3992,489 @@ int DB::updateEntry(query q)
 	// Mark the slot as deleted and insert the data
 	// Else, the field is fixed length, so, just call the modify data page data directly...
 	// Delete only after the entry is inserted. Else, do not delete it !!!!
+
+	string debugMessage;
+	bool retWriteLog;
+
+	string tableName = q->table;
+
+	string dbName;
+	int results = 0;
+
+	BufferManager *bu = BufferManager::getBufferManager();
+	short priority = 3;
+	bool retReadDB;
+
+	// To get the dbName, have to read the DBHeader
+	char * dbBuff = new char [_pageSize];
+	retReadDB = (*bu).readDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbBuff);
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbBuff;
+		return DATABASEREADDBERROR;
+	}
+	DBHeader * curDBHeader = new DBHeader(dbBuff,_pageSize);
+	dbName = curDBHeader->getDatabaseName();
+	delete curDBHeader;
+	delete dbBuff;
+
+	// Check whether table exists
+	int nextSysTabPointer = _sysTablesPTR, nextSysColumnsPointer = _sysColumnsPTR;
+	int curSysTabPointer = -1,curSysColsPointer = -1;
+		
+	int entryPosition = -1,entryPage = -1;
+
+	while(nextSysTabPointer != -1)
+	{
+		char * curSysTabBuffer = new char [_pageSize];
+		// Read the file to the buffer
+		retReadDB = (*bu).readDB(fdID,nextSysTabPointer,(PagePriority)(priority),curSysTabBuffer);
+		if(retReadDB == false)
+		{
+			// Unable to read the buffer
+			// Return error
+			delete curSysTabBuffer;
+			return DATABASEREADDBERROR;
+		}
+		SysTables * curSysTable = new SysTables(curSysTabBuffer,_pageSize);
+		curSysTabPointer = nextSysTabPointer;
+		nextSysTabPointer = curSysTable->getnextSysTablePage();
+		entryPosition = curSysTable->searchSysTableEntry(tableName,dbName,curSysTabBuffer);
+		if(entryPosition != -1)
+		{
+			entryPage = curSysTabPointer;
+			delete curSysTable;
+			delete curSysTabBuffer;
+			break;
+		}
+		delete curSysTable;
+		delete curSysTabBuffer;
+	}
+
+	if(entryPage == -1)
+	{
+		// Table name not found error
+		return DELETETABLETBLNOTFOUNDERROR;
+	}
+
+	char * sysTabBuffer = new char [_pageSize];
+	retReadDB = (*bu).readDB(fdID,entryPage,(PagePriority)(priority),sysTabBuffer);
+	if(retReadDB == false)
+	{
+		// Unable to read the buffer
+		// Return error
+		delete sysTabBuffer;
+		return DATABASEREADDBERROR;
+	}
+
+	char * newEntryBuff = new char [SYSTABLEENTRYSIZE];
+	memcpy(newEntryBuff,&sysTabBuffer[0+((entryPosition-1)*SYSTABLEENTRYSIZE)],SYSTABLEENTRYSIZE);
+
+	SysTableEntry newSysTablesEntry;
+	newSysTablesEntry.getDataBuffer(newEntryBuff);
+
+	delete newEntryBuff;
+	delete sysTabBuffer;
+
+	int recordLength = newSysTablesEntry.getRecLength();
+	short keyCols = newSysTablesEntry.getKeyColumns();
+	short colCount = newSysTablesEntry.getColCount();
+	int noOfRows = newSysTablesEntry.getTableRows();
+	int dirPageEntry = newSysTablesEntry.getDirectoryPagePointer();
+	int noOfPages = newSysTablesEntry.getNoPages();
+	bool isTableDynamic = false;
+	if(newSysTablesEntry.getRowFormat() != 'F')
+		isTableDynamic = true;
+
+	string * dataTypes = new string [colCount];
+	string * columnNames = new string [colCount];
+	int * ordinalPositions = new int [colCount];
+	int * columnLengths = new int [colCount];
+	short * scales = new short [colCount];
+
+	for(short curColCount = 0;curColCount<colCount;curColCount++)
+	{
+		// Get the SysColumns entry for the column at curColCount position
+		char * curSysColBuff = new char [_pageSize];
+		while(nextSysColumnsPointer != -1)
+		{
+			retReadDB = (*bu).readDB(fdID,nextSysColumnsPointer,(PagePriority)(priority),curSysColBuff);
+			if(retReadDB == false)
+			{
+				// Unable to read the buffer
+				// Return error
+				delete curSysColBuff;
+				delete [] dataTypes;
+				delete [] columnNames;
+				delete ordinalPositions;
+				delete scales;
+				delete columnLengths;
+				return DATABASEREADDBERROR;
+			}
+			SysColumns * curSysColumns = new SysColumns(curSysColBuff,_pageSize);
+			curSysColsPointer = nextSysColumnsPointer;
+			nextSysColumnsPointer = curSysColumns->getnextSysColumnsPage();
+
+			int resSearchSysCols = curSysColumns->searchSysColumnEntry(curColCount,tableName,curSysColBuff);
+			if(resSearchSysCols > 0)
+			{
+				char * curSysColumnsEntry = new char [SYSCOLUMNENTRYSIZE];
+				memcpy(curSysColumnsEntry,&curSysColBuff[0+((resSearchSysCols-1)*SYSCOLUMNENTRYSIZE)],SYSCOLUMNENTRYSIZE);
+				SysColumnsEntry curEntry;
+				curEntry.getDataBuffer(curSysColumnsEntry);
+				columnNames[curColCount] = curEntry.getColumnName();
+				dataTypes[curColCount] = curEntry.getColumnName();
+				ordinalPositions[curColCount] = curEntry.getOrdinalPosition();
+				columnLengths[curColCount] = curEntry.getLength();
+				scales[curColCount] = curEntry.getScale();
+				delete curSysColumnsEntry;
+			}
+			delete curSysColumns;
+		}
+		delete curSysColBuff;
+	}
+
+	int nextPTR = dirPageEntry;
+	int curPTR = -1;
+
+	while(nextPTR != -1)
+	{
+		char * deBuf = new char [_pageSize];
+		short dirPagePriority = 2,dataPagePriority = 1;
+		bool retReadDB,retWriteDB;
+		//int res = pageRead(fileName,nextPTR,deBuf,_pageSize);
+		retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(dirPagePriority),deBuf);
+		if(retReadDB == false)
+		{
+			// Unable to read the buffer
+			// Return error
+			delete deBuf;
+			delete [] dataTypes;
+			delete [] columnNames;
+			delete ordinalPositions;
+			delete scales;
+			delete columnLengths;
+			return DATABASEREADDBERROR;
+		}
+		DirectoryPage * directoryPage = new DirectoryPage(deBuf,_pageSize);
+		curPTR = nextPTR;
+		nextPTR = directoryPage->getNextDirectoryPagePointer();
+		int noOfEntries = directoryPage->getNoE();
+		if(noOfEntries == 0)
+		{
+			if(debugFlag == true)
+			{
+				debugMessage = "There are no entries in this page for data page "+curPTR;
+				retWriteLog = writeLog(debugMessage);
+			}
+		}
+		for(int i = 0;i < noOfEntries;i++)
+		{
+			int resCount = 0;
+			char * entryBuffer = new char [DESIZE];
+			memcpy(entryBuffer,&deBuf[0+i*DESIZE],DESIZE);
+			DirectoryPageEntry * newDirectoryPageEntry = new DirectoryPageEntry(entryBuffer);
+			int pageID = newDirectoryPageEntry->getPageID();
+			int tfs = newDirectoryPageEntry->getTFS();
+			char * dataPageBuffer = new char [_pageSize];
+			//res = pageRead(fileName,pageID,dataPageBuffer,_pageSize);
+			retReadDB = (*bu).readDB(fdID,pageID,(PagePriority)(dataPagePriority),dataPageBuffer);
+			if(retReadDB == false)
+			{
+				// Unable to read the buffer
+				// Return error
+				delete deBuf;
+				delete directoryPage;
+				delete newDirectoryPageEntry;
+				delete entryBuffer;
+				delete dataPageBuffer;
+				delete [] dataTypes;
+				delete [] columnNames;
+				delete ordinalPositions;
+				delete scales;
+				delete columnLengths;
+				return DATABASEREADDBERROR;
+			}
+			DataPage * curDataPage = new DataPage(dataPageBuffer,_pageSize);
+			int noOfSlots = curDataPage->getslotCounter();
+			if(noOfSlots == 0)
+			{
+				if(debugFlag == true)
+				{
+					debugMessage = "There are no entries in this data page"+pageID;
+					retWriteLog = writeLog(debugMessage);
+				}
+			}
+			else
+			{
+				for(int j = 0;j<noOfSlots;j++)
+				{
+					int slotSize;
+					long slotPointer;
+					memcpy(&slotPointer,&dataPageBuffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-j*sizeof(int)],sizeof(long));
+					memcpy(&slotSize,&dataPageBuffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-(j+1)*sizeof(int)],sizeof(int));
+					if(slotSize<0)
+					{
+						// Slot has been already deleted....
+						// No need to delete.....
+						continue;
+					}
+					else
+					{
+						char * dataBuffer = new char [slotSize];
+						memcpy(dataBuffer,&dataPageBuffer[slotPointer],slotSize);
+
+						bool * modified = new bool [1];
+
+						int toBeModified = queryEvaluate(dataBuffer,q,columnNames,dataTypes,ordinalPositions,scales,columnLengths,modified);
+
+						if(*modified == true)
+						{
+							resCount++;
+							// Delete the old record and insert the new one
+							char * newData = new char [];
+							char * newData = new char [slotSize];
+							int updatePos = 0;
+							string * toModifyValues = new string [colCount];
+							string oldString;
+							for(i=0;i<slotSize;i++)
+								oldString = oldString+dataBuffer[i];
+							string updateString;
+							bool * modifiedFlags = new bool [colCount];
+
+							for(short curColCount = 0;curColCount<colCount;curColCount++)
+							{
+								short colPosition = -1;
+								short c1,c2;
+								short charLength,varcharLength = 0;
+								memcpy(&charLength,&dataBuffer[updatePos],sizeof(short));
+								char * newDataPos = new char [charLength];
+								for(c1 = 0;c1<colCount;c1++)
+								{
+									if(ordinalPositions[c1] == curColCount)
+									{
+										colPosition = c1;
+										break;
+									}
+								}
+								string modifyColumnName = columnNames[c1];
+								string modifyDataType = dataTypes[c1];
+								short modifyScales = scales[c1];
+								int modifyColumnLength = columnLengths[c1];
+								bool modifiedFlag = false,varcharFlag = false;
+								for(c2 = 0;c2<q->cntColumns;c2++)
+								{
+									string curColumnName = (q->ins[c2]).colname;
+									if(curColumnName == modifyColumnName)
+									{
+										modifiedFlag = true;
+										modifiedFlags[curColCount] = true;
+										if(strncmp(modifyDataType.c_str(),"INT$$$$$",8) == 0||strncmp(modifyDataType.c_str(),"UINT$$$$",8) == 0)
+										{
+											string curColData = (q->ins[c2]).str;
+											int curData = atoi(curColData);
+											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newData[updatePos+sizeof(short)],&curData,sizeof(int));
+											toModifyValues[curColCount] = curColData;
+										}
+										else if(strncmp(modifyDataType.c_str(),"SMALLINT",8) == 0||strncmp(modifyDataType.c_str(),"USMALL$$",8) == 0)
+										{
+											string curColData = (q->ins[c2]).str;
+											short curData = atoi(curColData);
+											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newData[updatePos+sizeof(short)],&curData,sizeof(short));
+											toModifyValues[curColCount] = curColData;
+										}
+										else if(strncmp(modifyDataType.c_str(),"BIGINT$$",8) == 0||strncmp(modifyDataType.c_str(),"UBIG$$$$",8) == 0)
+										{
+											string curColData = (q->ins[c2]).str;
+											long curData = atol(curColData);
+											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newData[updatePos+sizeof(short)],&curData,sizeof(long));
+											toModifyValues[curColCount] = curColData;
+										}											}
+										else if(strncmp(modifyDataType.c_str(),"FLOAT$$$",8) == 0)
+										{
+											string curColData = (q->ins[c2]).str;
+											float curData = atof(curColData);
+											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newData[updatePos+sizeof(short)],&curData,sizeof(float));
+											toModifyValues[curColCount] = curColData;
+										}
+										else if(strncmp(modifyDataType.c_str(),"DOUBLE$$",8) == 0)
+										{
+											string curColData = (q->ins[c2]).str;
+											double curData = atof(curColData);
+											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newData[updatePos+sizeof(short)],&curData,sizeof(double));
+											toModifyValues[curColCount] = curColData;
+										}
+										else if(strncmp(modifyDataType.c_str(),"CHAR$$$$",8) == 0)
+										{
+											string curColData = (q->ins[c2]).str;
+											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newData[updatePos+sizeof(short)],curColData.c_str(),curColData.length());
+											toModifyValues[curColCount] = curColData;
+										}
+										else if(strncmp(modifyDataType.c_str(),"VARCHAR$",8) == 0)
+										{
+											string curColData = (q->ins[c2]).str;
+											int stringLength = curColData.length();
+											delete newDataPos;
+											varcharFlag == true;
+											varcharLength = sizeof(short)+sizeof(int)+stringLength;
+											newDataPos = new char [sizeof(int)+stringLength];
+											memcpy(&newData[updatePos],&varcharLength,sizeof(short));
+											memcpy(&newData[updatePos+sizeof(short)],&stringLength,sizeof(int));
+											memcpy(&newData[updatePos+sizeof(short)+sizeof(int)],curColData.c_str(),curColData.length());
+											toModifyValues[curColCount] = curColData;
+										}
+										else if(strncmp(modifyDataType.c_str(),"DATE$$$$",8) == 0)
+										{
+											string curColData = ((q->ins[c2])->d).date;
+											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newData[updatePos+sizeof(short)],curColData.c_str(),curColData.length());
+											toModifyValues[curColCount] = curColData;
+										}
+										else if(strncmp(modifyDataType.c_str(),"TIME$$$$",8) == 0)
+										{
+											string curColData = ((q->ins[c2])->d).time;
+											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newData[updatePos+sizeof(short)],curColData.c_str(),curColData.length());
+											toModifyValues[curColCount] = curColData;
+										}
+										else if(strncmp(modifyDataType.c_str(),"DATETIME",8) == 0)
+										{
+											string curColDate = ((q->ins[c2])->d).date;
+											string curColTime = ((q->ins[c2])->d).time;
+											memcpy(&newData[updatePos],&dataBuffer[updatePos],sizeof(short));
+											memcpy(&newData[updatePos+sizeof(short)],curColDate.c_str(),curColDate.length());
+											memcpy(&newData[updatePos+sizeof(short)+(8*sizeof(char))],curColTime.c_str(),curColTime.length());
+											toModifyValues[curColCount] = curColDate+curColTime;
+										}
+										break;
+									}
+								}
+								updatePos = updatePos+sizeof(short);
+								if(modifiedFlag == false)
+								{
+									// No data change
+									memcpy(&newData[updatePos],&dataBuffer[updatePos],charLength);
+								}
+								updatePos = updatePos+charLength;
+								delete newDataPos;
+							}
+							if(isTableDynamic == true)
+							{
+								
+								tfs = tfs + slotSize;
+								slotSize = (-1)*slotSize;
+								memcpy(&dataPageBuffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-(j+1)*sizeof(int)],&slotSize,sizeof(int));
+							}
+							else
+							{
+								memcpy(&dataPageBuffer[slotPointer],newData,slotSize);
+								bool retWriteDB = (*bu).writeDB(fdID,pageID,(PagePriority)(dataPagePriority),dataPageBuffer);
+								if(retWriteDB == false)
+								{
+									// Unable to read the buffer
+									// Return error
+									delete deBuf;
+									delete dataBuffer;
+									delete newData;
+									delete directoryPage;
+									delete newDirectoryPageEntry;
+									delete entryBuffer;
+									delete dataPageBuffer;
+									delete [] dataTypes;
+									delete [] columnNames;
+									delete ordinalPositions;
+									delete scales;
+									delete columnLengths;
+									return DATABASEWRITEDBERROR;
+								}
+								delete newData;
+							}
+						}
+						delete modified;
+						if(toBeModified < 0)
+						{
+							// Error
+							delete dataBuffer;
+							delete deBuf;
+							delete directoryPage;
+							delete curDataPage;
+							delete dataPageBuffer;
+							delete newDirectoryPageEntry;
+							delete entryBuffer;
+							delete [] dataTypes;
+							delete [] columnNames;
+							delete ordinalPositions;
+							delete scales;
+							delete columnLengths;
+							return toBeDeleted;
+						}
+						delete dataBuffer;
+					}
+				}
+				//res = pageWrite(fileName,pageID,dataPageBuffer,_pageSize);
+				retWriteDB = (*bu).writeDB(fdID,pageID,(PagePriority)(dataPagePriority),dataPageBuffer);
+				if(retWriteDB == false)
+				{
+					// Unable to read the buffer
+					// Return error
+					delete deBuf;
+					delete directoryPage;
+					delete curDataPage;
+					delete dataPageBuffer;
+					delete newDirectoryPageEntry;
+					delete entryBuffer;
+					delete [] dataTypes;
+					delete [] columnNames;
+					delete ordinalPositions;
+					delete scales;
+					delete columnLengths;
+					return DATABASEWRITEDBERROR;
+				}
+			}
+			delete curDataPage;
+			delete dataPageBuffer;
+
+			newDirectoryPageEntry->setTFS(tfs);
+			newDirectoryPageEntry->fillBuffer(entryBuffer);
+			memcpy(&deBuf[0+i*DESIZE],entryBuffer,DESIZE);
+			delete newDirectoryPageEntry;
+			delete entryBuffer;
+			results = results + resCount;
+		}
+		directoryPage->updateMaxTFS(deBuf);
+		//pageWrite(fileName,curPTR,deBuf,_pageSize);
+		retWriteDB = (*bu).writeDB(fdID,curPTR,(PagePriority)(dirPagePriority),deBuf);
+		if(retWriteDB == false)
+		{
+			// Unable to read the buffer
+			// Return error
+			delete deBuf;
+			delete directoryPage;
+			delete [] dataTypes;
+			delete [] columnNames;
+			delete ordinalPositions;
+			delete scales;
+			delete columnLengths;
+			return DATABASEWRITEDBERROR;
+		}
+		delete directoryPage;
+		delete deBuf;
+	}
+
+	delete [] dataTypes;
+	delete [] columnNames;
+	delete ordinalPositions;
+	delete scales;
+	delete columnLengths;
+*/
 }
 
 int DB::alterTable(query q)
