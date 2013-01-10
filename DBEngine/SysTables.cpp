@@ -477,19 +477,19 @@ void SysTables::writeSysTableBuffer(char *buffer)
 	// The buffer will be part of the function call, fill it, the caller will take care of reading or writing
 
 	// Copying contents to buffer.....
-	cout<<"PageID PTR: "<<PAGEIDPTR<<" Value: "<<_pageID<<endl;
+	//cout<<"PageID PTR: "<<PAGEIDPTR<<" Value: "<<_pageID<<endl;
 	memcpy(&buffer[PAGEIDPTR],&_pageID,sizeof(int));
-	cout<<"PagePriority PTR: "<<PAGEPRIPTR<<" Value: "<<_pagePriority<<endl;
+	//cout<<"PagePriority PTR: "<<PAGEPRIPTR<<" Value: "<<_pagePriority<<endl;
 	memcpy(&buffer[PAGEPRIPTR],&_pagePriority,sizeof(short));
-	cout<<"Next PTR: "<<NEXTPTR<<" Value: "<<_nextSysTablePage<<endl;
+	//cout<<"Next PTR: "<<NEXTPTR<<" Value: "<<_nextSysTablePage<<endl;
 	memcpy(&buffer[NEXTPTR],&_nextSysTablePage,sizeof(int));
-	cout<<"CurrentSysTabSize PTR: "<<" Value: "<<_curSysTableSize<<endl;
+	//cout<<"CurrentSysTabSize PTR: "<<" Value: "<<_curSysTableSize<<endl;
 	memcpy(&buffer[CURSYSTABSIZEPTR],&_curSysTableSize,sizeof(int));
-	cout<<"RemSysTabSize PTR: "<<" Value: "<<_remSysTableSize<<endl;
+	//cout<<"RemSysTabSize PTR: "<<" Value: "<<_remSysTableSize<<endl;
 	memcpy(&buffer[REMSYSTABSIZEPTR],&_remSysTableSize,sizeof(int));
-	cout<<"SysTabEntry PTR: "<<SYSTABLEENTRYPTR<<" Value: "<<_sysTableEntryPointer<<endl;
+	//cout<<"SysTabEntry PTR: "<<SYSTABLEENTRYPTR<<" Value: "<<_sysTableEntryPointer<<endl;
 	memcpy(&buffer[SYSTABLEENTRYPTR],&_sysTableEntryPointer,sizeof(long));
-	cout<<"NoOfEnt PTR: "<<SYSTABNOEPTR<<" Value: "<<_noOfEntries<<endl;
+	//cout<<"NoOfEnt PTR: "<<SYSTABNOEPTR<<" Value: "<<_noOfEntries<<endl;
 	memcpy(&buffer[SYSTABNOEPTR],&_noOfEntries,sizeof(int));
 
 	// WriteBuffer.... Chinmay's function call here.....
@@ -577,6 +577,8 @@ int SysTables::createNewSysTableEntry(char *entryBuffer,char *sysTableBuffer)
 			memcpy(&sysTableBuffer[FIRSTSYSTABSLOTPTR],&inserted,sizeof(char));
 		else
 			memcpy(&sysTableBuffer[FIRSTSYSTABSLOTPTR-((_noOfEntries-1)*sizeof(char))],&inserted,sizeof(char));
+		if(debugFlag == true)
+			writeLog("SysTable Entry was inserted in this page...."+_pageID);
 		return 1; // SysTableEntry can be added
 	}
 }
@@ -600,13 +602,16 @@ int SysTables::deleteSysTableEntry(string tabName,string dbName,char * sysTableB
 	int entryID,i;
 	char alreadyDeleted;
 
+	string debugMessage;
+
 	for(i = 0;i<_noOfEntries;i++)
 	{
 		memcpy(&alreadyDeleted,&sysTableBuffer[FIRSTSYSTABSLOTPTR-(i*SYSTABSLOTSIZE)],SYSTABSLOTSIZE);
 
 		if(alreadyDeleted == '0')
 		{
-			cout<<"The entry is deleted... Don't search there.....";
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
 			continue;
 		}
 
@@ -651,7 +656,8 @@ int SysTables::deleteSysTableEntry(string tabName,string dbName,char * sysTableB
 
 	if(found == 0)
 	{
-		cout<<"Table not found... Continue searching..."<<endl;
+		if(debugFlag == true)
+			writeLog("Table not found... Continue searching..."+_pageID);
 		return -1;// Entry not found
 	}
 	// When deleting the entry
@@ -701,7 +707,8 @@ int SysTables::searchSysTableEntry(string tabName,string dbName,char * sysTableB
 		memcpy(&entryDeleted,&sysTableBuffer[FIRSTSYSTABSLOTPTR-(i*SYSTABSLOTSIZE)],SYSTABSLOTSIZE);
 		if(entryDeleted == '0')
 		{
-			cout<<"Entry has been deleted... Continue searching....";
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
 			continue;
 		}
 		char * newEntryBuff = new char [SYSTABLEENTRYSIZE];
@@ -745,10 +752,11 @@ int SysTables::searchSysTableEntry(string tabName,string dbName,char * sysTableB
 
 	if(found == 1)
 	{
-		cout<<"Entry found... Do not search in other pages......"<<endl;
-		cout<<"Entry found at "<<i+1<<"th slot"<<endl;
+		if(debugFlag == true)
+			writeLog("Entry found... Do not search in other pages......\n Entry found at the slot"+(i+1));
 		return i+1;
 	}
-	cout<<"Entry not found in this page.... Continue searching..."<<endl;
+	if(debugFlag == true)
+		writeLog("Entry not found in this page.... Continue searching..."+_pageID);
 	return -1;
 }

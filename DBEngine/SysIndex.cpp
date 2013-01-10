@@ -356,6 +356,8 @@ int SysIndex::createNewSysIndexEntry(char *entryBuff,char *sysIndexBuff)
 			memcpy(&sysIndexBuff[FIRSTSYSINDSLOTPTR],&inserted,sizeof(char));
 		else
 			memcpy(&sysIndexBuff[FIRSTSYSINDSLOTPTR-((_noOfEntries-1)*sizeof(char))],&inserted,sizeof(char));
+		if(debugFlag == true)
+			writeLog("SysIndex Entry was inserted in this page...."+_pageID);
 		return 1; // SysIndex Entry inserted....
 	}
 }
@@ -372,7 +374,8 @@ int SysIndex::deleteSysIndexEntry(string indexName,char *sysIndexBuff)
 
 		if(alreadyDeleted == '0')
 		{
-			cout<<"The entry is deleted... Don't search there.....";
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
 			continue;
 		}
 
@@ -406,7 +409,8 @@ int SysIndex::deleteSysIndexEntry(string indexName,char *sysIndexBuff)
 
 	if(found == 0)
 	{
-		cout<<"Index not found... Continue searching..."<<endl;
+		if(debugFlag == true)
+			writeLog("Entry not found in this page.... Continue searching..."+_pageID);
 		return -1;// Entry not found
 	}
 
@@ -427,7 +431,8 @@ int SysIndex::deleteSysIndexEntry(string indexName,string tableName,char *sysInd
 
 		if(alreadyDeleted == '0')
 		{
-			cout<<"The entry is deleted... Don't search there.....";
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
 			continue;
 		}
 
@@ -471,7 +476,8 @@ int SysIndex::deleteSysIndexEntry(string indexName,string tableName,char *sysInd
 
 	if(found == 0)
 	{
-		cout<<"Index not found... Continue searching..."<<endl;
+		if(debugFlag == true)
+			writeLog("Entry not found in this page.... Continue searching..."+_pageID);
 		return -1;// Entry not found
 	}
 
@@ -492,7 +498,8 @@ int SysIndex::searchSysIndexEntry(string indexName,char *sysIndexBuff)
 
 		if(alreadyDeleted == '0')
 		{
-			cout<<"The entry is deleted... Don't search there.....";
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
 			continue;
 		}
 
@@ -526,7 +533,8 @@ int SysIndex::searchSysIndexEntry(string indexName,char *sysIndexBuff)
 
 	if(found == 0)
 	{
-		cout<<"Index not found... Continue searching..."<<endl;
+		if(debugFlag == true)
+			writeLog("Entry not found in this page.... Continue searching..."+_pageID);
 		return -1;// Entry not found
 	}
 
@@ -545,7 +553,8 @@ int SysIndex::searchSysIndexEntry(string indexName,string tableName,char *sysInd
 
 		if(alreadyDeleted == '0')
 		{
-			cout<<"The entry is deleted... Don't search there.....";
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
 			continue;
 		}
 
@@ -589,7 +598,8 @@ int SysIndex::searchSysIndexEntry(string indexName,string tableName,char *sysInd
 
 	if(found == 0)
 	{
-		cout<<"Index not found... Continue searching..."<<endl;
+		if(debugFlag == true)
+			writeLog("Entry not found in this page.... Continue searching..."+_pageID);
 		return -1;// Entry not found
 	}
 

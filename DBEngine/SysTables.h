@@ -249,4 +249,12 @@ class SysTables
 		// Check if I can write it as a list of SysTableEntry objects instead of passing the buffer around.......
 		int deleteSysTableEntry(string tabName,char * sysTableBuffer);
 		int deleteSysTableEntry(string tabName,string dbName,char * sysTableBuffer);
+
+		bool writeLog(string message)
+		{
+			ofstream myfile;
+			myfile.open (DEBUGFILENAME);
+			myfile << "From SysTables: "<<message<<endl;
+			myfile.close();
+		}
 };

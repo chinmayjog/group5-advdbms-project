@@ -628,26 +628,26 @@ void SysColumns::writeSysColumnsBuffer(char *buffer)
 		return -1;
 	}*/
 
-	cout<<"Object contents....: "<<endl;
-	cout<<"Remaining size: "<<this->getRemSysColumnsSize()<<endl;
-	cout<<"MetaData Size: "<<SYSCOLUMNMETADATASIZE<<endl;
-	cout<<"Entry Space: "<<SYSCOLUMNENTRYSPACE<<endl;
-	cout<<"Page Size: "<<PAGESIZE<<endl;
+	//cout<<"Object contents....: "<<endl;
+	//cout<<"Remaining size: "<<this->getRemSysColumnsSize()<<endl;
+	//cout<<"MetaData Size: "<<SYSCOLUMNMETADATASIZE<<endl;
+	//cout<<"Entry Space: "<<SYSCOLUMNENTRYSPACE<<endl;
+	//cout<<"Page Size: "<<PAGESIZE<<endl;
 
 	// Copying contents to buffer.....
-	cout<<"PageID PTR: "<<PAGEIDPTR<<" Value: "<<_pageID<<endl;
+	//cout<<"PageID PTR: "<<PAGEIDPTR<<" Value: "<<_pageID<<endl;
 	memcpy(&buffer[PAGEIDPTR],&_pageID,sizeof(int));
-	cout<<"PagePriority PTR: "<<PAGEPRIPTR<<" Value: "<<_pagePriority<<endl;
+	//cout<<"PagePriority PTR: "<<PAGEPRIPTR<<" Value: "<<_pagePriority<<endl;
 	memcpy(&buffer[PAGEPRIPTR],&_pagePriority,sizeof(short));
-	cout<<"Next PTR: "<<NEXTPTR<<" Value: "<<_nextSysColumnsPage<<endl;
+	//cout<<"Next PTR: "<<NEXTPTR<<" Value: "<<_nextSysColumnsPage<<endl;
 	memcpy(&buffer[NEXTPTR],&_nextSysColumnsPage,sizeof(int));
-	cout<<"CurrentSysColSize PTR: "<<CURSYSCOLSIZEPTR<<" Value: "<<_curSysColumnsSize<<endl;
+	//cout<<"CurrentSysColSize PTR: "<<CURSYSCOLSIZEPTR<<" Value: "<<_curSysColumnsSize<<endl;
 	memcpy(&buffer[CURSYSCOLSIZEPTR],&_curSysColumnsSize,sizeof(int));
-	cout<<"RemSysColSize PTR: "<<REMSYSCOLSIZEPTR<<" Value: "<<_remSysColumnsSize<<endl;
+	//cout<<"RemSysColSize PTR: "<<REMSYSCOLSIZEPTR<<" Value: "<<_remSysColumnsSize<<endl;
 	memcpy(&buffer[REMSYSCOLSIZEPTR],&_remSysColumnsSize,sizeof(int));
-	cout<<"SysColEntry PTR: "<<SYSCOLUMNENTRYPTR<<" Value: "<<_sysColumnsEntryPointer<<endl;
+	//cout<<"SysColEntry PTR: "<<SYSCOLUMNENTRYPTR<<" Value: "<<_sysColumnsEntryPointer<<endl;
 	memcpy(&buffer[SYSCOLUMNENTRYPTR],&_sysColumnsEntryPointer,sizeof(long));
-	cout<<"NoOfEnt PTR: "<<SYSCOLNOEPTR<<" Value: "<<_noOfEntries<<endl;
+	//cout<<"NoOfEnt PTR: "<<SYSCOLNOEPTR<<" Value: "<<_noOfEntries<<endl;
 	memcpy(&buffer[SYSCOLNOEPTR],&_noOfEntries,sizeof(int));
 
 	// WriteBuffer.... Chinmay's function call here.....
@@ -714,6 +714,8 @@ int SysColumns::createNewSysColumnEntry(char *entryBuffer,char *sysColumnBuffer)
 			memcpy(&sysColumnBuffer[FIRSTSYSCOLSLOTPTR],&inserted,sizeof(char));
 		else
 			memcpy(&sysColumnBuffer[FIRSTSYSCOLSLOTPTR-((_noOfEntries-1)*sizeof(char))],&inserted,sizeof(char));
+		if(debugFlag == true)
+			writeLog("SysColumns Entry was inserted in this page...."+_pageID);
 		return 1; // SysColumnEntry can be added
 	}
 }
@@ -735,7 +737,8 @@ int SysColumns::deleteSysColumnEntry(string columnName,char * sysColumnBuffer)
 
 		if(alreadyDeleted == '0')
 		{
-			cout<<"The entry is deleted... Don't search there.....";
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
 			continue;
 		}
 
@@ -770,7 +773,8 @@ int SysColumns::deleteSysColumnEntry(string columnName,char * sysColumnBuffer)
 
 	if(found == 0)
 	{
-		cout<<"Column not found... Continue searching..."<<endl;
+		if(debugFlag == true)
+			writeLog("Entry not found in this page.... Continue searching..."+_pageID);
 		return -1;// Entry not found
 	}
 
@@ -794,7 +798,8 @@ int SysColumns::deleteSysColumnEntry(string columnName,string tableName,char * s
 
 		if(alreadyDeleted == '0')
 		{
-			cout<<"The entry is deleted... Don't search there.....";
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
 			continue;
 		}
 
@@ -839,7 +844,8 @@ int SysColumns::deleteSysColumnEntry(string columnName,string tableName,char * s
 
 	if(found == 0)
 	{
-		cout<<"Column not found... Continue searching..."<<endl;
+		if(debugFlag == true)
+			writeLog("Entry not found in this page.... Continue searching..."+_pageID);
 		return -1;// Entry not found
 	}
 
@@ -863,7 +869,8 @@ int SysColumns::deleteSysColumnEntry(string columnName,string tableName,string d
 
 		if(alreadyDeleted == '0')
 		{
-			cout<<"The entry is deleted... Don't search there.....";
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
 			continue;
 		}
 
@@ -928,7 +935,8 @@ int SysColumns::deleteSysColumnEntry(string columnName,string tableName,string d
 
 	if(found == 0)
 	{
-		cout<<"Column not found... Continue searching..."<<endl;
+		if(debugFlag == true)
+			writeLog("Entry not found in this page.... Continue searching..."+_pageID);
 		return -1;// Entry not found
 	}
 
@@ -951,7 +959,8 @@ int SysColumns::searchSysColumnEntry(string columnName,char * sysColumnBuffer)
 
 		if(alreadyDeleted == '0')
 		{
-			cout<<"The entry is deleted... Don't search there.....";
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
 			continue;
 		}
 
@@ -986,7 +995,8 @@ int SysColumns::searchSysColumnEntry(string columnName,char * sysColumnBuffer)
 
 	if(found == 0)
 	{
-		cout<<"Column not found... Continue searching..."<<endl;
+		if(debugFlag == true)
+			writeLog("Entry not found in this page.... Continue searching..."+_pageID);
 		return -1;// Entry not found
 	}
 
@@ -1007,7 +1017,8 @@ int SysColumns::searchSysColumnEntry(int ordinalPosition,string tableName,char *
 
 		if(alreadyDeleted == '0')
 		{
-			cout<<"The entry is deleted... Don't search there.....";
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
 			continue;
 		}
 
@@ -1044,7 +1055,8 @@ int SysColumns::searchSysColumnEntry(int ordinalPosition,string tableName,char *
 
 	if(found == 0)
 	{
-		cout<<"Column not found... Continue searching..."<<endl;
+		if(debugFlag == true)
+			writeLog("Entry not found in this page.... Continue searching..."+_pageID);
 		return -1;// Entry not found
 	}
 
@@ -1066,7 +1078,8 @@ int SysColumns::searchSysColumnEntry(string columnName,string tableName,char * s
 
 		if(alreadyDeleted == '0')
 		{
-			cout<<"The entry is deleted... Don't search there.....";
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
 			continue;
 		}
 
@@ -1111,7 +1124,8 @@ int SysColumns::searchSysColumnEntry(string columnName,string tableName,char * s
 
 	if(found == 0)
 	{
-		cout<<"Column not found... Continue searching..."<<endl;
+		if(debugFlag == true)
+			writeLog("Entry not found in this page.... Continue searching..."+_pageID);
 		return -1;// Entry not found
 	}
 
@@ -1133,7 +1147,8 @@ int SysColumns::searchSysColumnEntry(string columnName,string tableName,string d
 
 		if(alreadyDeleted == '0')
 		{
-			cout<<"The entry is deleted... Don't search there.....";
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
 			continue;
 		}
 
@@ -1198,7 +1213,8 @@ int SysColumns::searchSysColumnEntry(string columnName,string tableName,string d
 
 	if(found == 0)
 	{
-		cout<<"Column not found... Continue searching..."<<endl;
+		if(debugFlag == true)
+			writeLog("Entry not found in this page.... Continue searching..."+_pageID);
 		return -1;// Entry not found
 	}
 
