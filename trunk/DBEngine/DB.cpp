@@ -1954,7 +1954,7 @@ int DB::createDB(query q)
 
 	BufferManager *bu = BufferManager::getBufferManager();
 	int size = 100*1024*1024;
-
+	
 	if(fdID != -1)
 	{
 		// Some database is already there
@@ -2023,7 +2023,7 @@ int DB::createDB(query q)
 	DBHeader * dbHeader = new DBHeader(size,pageSize,q->dbname);
 	char * dbBuff = new char [pageSize];
 	dbHeader->writeDBHeader(dbBuff);
-	string fileName = DBROOT;
+	string fileName = "";
 	fileName = fileName+(q->dbname);
 	fileName = fileName+"_";
 	//fileName = fileName+pageSize;

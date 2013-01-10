@@ -26,7 +26,7 @@
 
 using namespace std;
 
-static int fdID;
+static int fdID = -1;
 static bool debugFlag = false;
 
 class DB
@@ -57,6 +57,7 @@ class DB
 			_pageSize = 2048;
 			_totSize = 100*1024*1024;
 			_noFreePages = (_totSize/_pageSize)-4;
+			::fdID = -1;
 		}
 
 		~DB()
