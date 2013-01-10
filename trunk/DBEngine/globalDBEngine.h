@@ -1,3 +1,5 @@
+#ifndef GLOBALDBENGINE_H
+#define GLOBALDBENGINE_H
 #ifndef globalA
 #define PAGESIZE _pageSize
 #endif
@@ -29,4 +31,6 @@
 #define DPSLOTSIZE (sizeof(long)+sizeof(int))
 #include"errornumsDBEngine.h"
 #define DEBUGFILENAME "../logs/DBEngine.log"
+static bool debugFlag = false;
+#endif
 #endif
