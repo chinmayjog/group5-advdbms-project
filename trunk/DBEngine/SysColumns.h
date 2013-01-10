@@ -222,6 +222,14 @@ class SysColumns
 			return new SysColumns(buffer);
 		}*/
 
+		bool writeLog(string message)
+		{
+			ofstream myfile;
+			myfile.open (DEBUGFILENAME);
+			myfile << "From SysColumns: "<<message<<endl;
+			myfile.close();
+		}
+
 		int getpageID();
 		void setpageID(int pageID);
 		short getpagePriority();

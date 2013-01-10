@@ -183,6 +183,14 @@ class SysIndex
 			// Destructor for SysIndex
 		};
 
+		bool writeLog(string message)
+		{
+			ofstream myfile;
+			myfile.open (DEBUGFILENAME);
+			myfile << "From SysIndex: "<<message<<endl;
+			myfile.close();
+		}
+
 		int getPageID();
 		void setPageID(int pageID);
 		short getPagePriority();
