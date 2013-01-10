@@ -10,4 +10,4 @@
 `g++ -c -g DataTypes.cpp`
 `g++ -c -g dataDirectoryPage.cpp`
 `g++ -c -g main.cpp`
-`g++ -g SysTables.o SysColumns.o SysIndex.o FreeList.o DataPage.o DBHeader.o dataDirectoryPage.o DataTypes.o DB.o BufferManager*.o main.o -o DBTestDebug.out`
+`g++ -g SysTables.o SysColumns.o SysIndex.o FreeList.o DataPage.o DBHeader.o dataDirectoryPage.o DataTypes.o DB.o ../cachemgr/obj/BufferManager*.o main.o -o DBTestDebug.out`

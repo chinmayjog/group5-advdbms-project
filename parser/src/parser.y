@@ -24,7 +24,7 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 
 %token SELECT INSERT CREATE DELETE UPDATE USE DROP SHOW ADD MODIFY ALTER PRIMARY KEY AUTOINCREMENT DEFAULT
 %token <id> ID INTNUM DBLNUM DATATYPE CHAR VARCHAR NULLTYPE
-%token DATABASE DATABASES TABLE TABLES DISTINCT FROM WHERE INTO VALUES INDEX ON COLUMN
+%token DATABASE DATABASES TABLE TABLES DISTINCT FROM WHERE INTO VALUES INDEX ON COLUMN CACHE
 %token LE LT GE GT EQ NE OR AND LIKE GROUP HAVING ORDER ASC DESC IN END QUOTE LIMIT SET
 %token <datetm>DATETIME DATE TIME
 %right  LPAREN RPAREN  
@@ -38,6 +38,8 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 				|STA3 END {return 0; } 
 				|STA4 END {return 0; }
 				|STA5 END {return 0; }
+				|CACHE {strcpy(q->type, "CACHE"); return 0;}
+				|
 				;
 
 	STA1:		 USE DATABASE ID {strcpy(q->type, "USEDB"); strcpy(q->dbname, $3);} 
