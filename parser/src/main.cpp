@@ -36,7 +36,7 @@ int main( int argc, char *argv[] ) {
 						result = curDB->createDB(q);
 					}
 					else if(!strcmp(q->type, "USEDB")){
-						result = curDB->createDB(q);
+						result = curDB->useDB(q);
 					}
 					else if(!strcmp(q->type,"DROPDB")){
 						result = curDB->dropDB(q);
@@ -48,7 +48,7 @@ int main( int argc, char *argv[] ) {
 						//result = curDB->showTables(q);
 					}
 					else if(!strcmp(q->type,"CREATETBL")){
-						//result = curDB->createTable(q);
+						result = curDB->createTable(q);
 					}
 					else if(!strcmp(q->type,"CREATEIND")){
 						//result = curDB->createIndex(q);
