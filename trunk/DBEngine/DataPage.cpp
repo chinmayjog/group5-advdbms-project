@@ -139,6 +139,91 @@ bool DataPage::checkCFS(int dataSize)
 		return 0;
 }
 
+int DataPage::insertData(char *dataPageBuffer,char *insertData,int dataSize,int *InsertedSlotID)
+{
+	// Check if the no. of slots is 0.....
+	if(_slotCounter == 0)
+	{
+		cout<<"\n This page is empty.....";
+		_slotCounter = _slotCounter + 1;
+		*InsertedSlotID = _slotCounter;
+		memcpy(&dataPageBuffer[_cfsPointer],insertData,dataSize);
+		memcpy(&dataPageBuffer[FIRSTSLOTPTR-sizeof(long)],&_cfsPointer,sizeof(long));
+		memcpy(&dataPageBuffer[FIRSTSLOTPTR-sizeof(long)-sizeof(int)],&dataSize,sizeof(int));
+
+		_cfsPointer += dataSize;
+		_cfs -= (dataSize + DPSLOTSIZE);
+		memcpy(&dataPageBuffer[PAGESLOTCOUNTER],&_slotCounter,sizeof(short));
+		memcpy(&dataPageBuffer[PAGECFSPOINTER],&_cfsPointer,sizeof(long));
+		memcpy(&dataPageBuffer[PAGECFSSIZEPOINTER],&_cfs,sizeof(int));
+
+		return 1; // The data was inserted successfully.....
+	}
+	// Check for deleted slots first and then, try creating a new slot for insertion
+	// Best-fit algorithm to find the best slot for inserting the data....
+	bool deletedFlag = 0;
+	int bestSize,bestFitSize = 0,position;
+	long bestSlotPointer;
+	long slotPointer;
+	for(int i=0;i<_slotCounter;i++)
+	{
+		memcpy(&slotPointer,&dataPageBuffer[FIRSTSLOTPTR-(i+1)*sizeof(long)-i*sizeof(int)],sizeof(long));
+		memcpy(&bestSize,&dataPageBuffer[FIRSTSLOTPTR-(i+1)*sizeof(long)-(i+1)*sizeof(int)],sizeof(int));
+		if(bestSize < 0 && (-1)*bestSize >= dataSize)
+		{
+			if(bestFitSize == 0)
+			{
+				deletedFlag = 1;
+				bestFitSize = bestSize;
+				bestSlotPointer = slotPointer;
+				position = i;
+			}
+			else if(bestSize > bestFitSize)
+				continue;
+			else
+			{
+				bestFitSize = bestSize;
+				bestSlotPointer = slotPointer;
+				position = i;
+			}
+		}
+	}
+	// Check if there was a deleted slot available for inserting the item.... If not insert at the proper position......
+	if(deletedFlag == 1)
+	{
+		// There is some deleted slot available for insertion....... Insert at that position
+		memcpy(&dataPageBuffer[bestSlotPointer],insertData,dataSize);
+		memcpy(&dataPageBuffer[FIRSTSLOTPTR-(position+1)*sizeof(long)-(position+1)*sizeof(int)],&dataSize,sizeof(int));
+		*InsertedSlotID = position+1;
+		return 2; // The data was inserted in a deleted slot....
+	}
+	// Now check for contiguous free space, and insert there, otherwise decide on defragmentation process......
+	if(checkCFS(dataSize) == 0)
+	{
+		// Decide whether to do defragmentation process now or delay it to some other time
+		// Alternatives - No defragmentation now. Set the lastDataPageTried to this data page.
+		// This one keeps gets updated. If we have to create a new Data page, then, we can insert in the
+		// last data page after defragmenting it.
+		// Otherwise, no defragmentation, create a new data page and insert it there
+		return -1;
+	}
+	else
+	{
+		_slotCounter = _slotCounter + 1;
+		*InsertedSlotID = _slotCounter;
+		memcpy(&dataPageBuffer[_cfsPointer],insertData,dataSize);
+		memcpy(&dataPageBuffer[LASTSLOTPTR-sizeof(long)],&_cfsPointer,sizeof(long));
+		memcpy(&dataPageBuffer[LASTSLOTPTR-sizeof(long)-sizeof(int)],&dataSize,sizeof(int));
+
+		_cfsPointer += dataSize;
+		_cfs -= (dataSize + DPSLOTSIZE);
+		memcpy(&dataPageBuffer[PAGESLOTCOUNTER],&_slotCounter,sizeof(short));
+		memcpy(&dataPageBuffer[PAGECFSPOINTER],&_cfsPointer,sizeof(long));
+		memcpy(&dataPageBuffer[PAGECFSSIZEPOINTER],&_cfs,sizeof(int));
+		return 3; // The data was inserted successfully after a new slot was created.....
+	}
+}
+
 int DataPage::insertData(char *dataPageBuffer,char *insertData,int dataSize)
 {
 	// Check if the no. of slots is 0.....

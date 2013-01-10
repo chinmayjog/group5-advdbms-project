@@ -124,9 +124,12 @@ class DataPage
 		bool checkCFS(int dataSize);
 
 		int insertData(char *dataPageBuffer,char *insertData,int dataSize);
+		int insertData(char *dataPageBuffer,char *insertData,int dataSize,int *InsertedSlotID);
 		// It is better to add data types as comparing data as char * does not yield proper results...
 		int deleteData(char *dataPageBuffer,char *deleteData,int dataPos,short dataType);
+		int deleteData(char *dataPageBuffer,char *deleteData,int dataPos,short dataType,int *InsertedSlotID);
 		int searchData(char *dataPageBuffer,char *searchData,int dataPos,short dataType);
 		// Use this update function only for fixed length updates not for data types like varchar....
 		int updateData(char *dataPageBuffer,char *oldData,char *newData,int dataPos,short dataType);
+		int updateData(char *dataPageBuffer,char *oldData,char *newData,int dataPos,short dataType,int *InsertedSlotID);
 };
