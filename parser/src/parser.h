@@ -41,8 +41,6 @@ typedef struct conditionStruct{
 	optype lt, rt;
 	int rightcnt;
 	bool flag;
-	
-	
 }condition;
 
 condition* newConditionStruct();
@@ -60,6 +58,7 @@ typedef struct {
     columnStruct columns[20];
     int cntColumns;
     condition *root;
+    bool andOrConditionFlag;
     insertStruct ins[20];
     int lowerLimit;
     int countResults;

@@ -372,8 +372,8 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 						push(a[count]);
 						count==0?count++:count--;
 				}
-			   | COND OR COND {condition *orcond = newConditionStruct(); orcond->rhs = pop(); orcond->lhs = pop(); orcond->cond=ORC; push(orcond); }
-			   | COND AND COND {condition *andcond = newConditionStruct(); andcond->rhs = pop(); andcond->lhs = pop(); andcond->cond=ANDC; push(andcond);}
+			   | COND OR COND {condition *orcond = newConditionStruct(); orcond->rhs = pop(); orcond->lhs = pop(); orcond->cond=ORC; push(orcond); q->andOrConditionFlag = true;}
+			   | COND AND COND {condition *andcond = newConditionStruct(); andcond->rhs = pop(); andcond->lhs = pop(); andcond->cond=ANDC; push(andcond); q->andOrConditionFlag = true;}
 			   |  LPAREN COND RPAREN  
                ;
     E          : LHS LE RHS {(a[count])->cond = LEQ; }
@@ -431,6 +431,7 @@ query load_query(const char *str) {
     q = new querystruct();
     q->cntColumns = 0;
     q->type[0] = '\0';
+    q->andOrConditionFlag = false;
     q->error = 0; 
     yy_scan_string(str);
     yyparse();
