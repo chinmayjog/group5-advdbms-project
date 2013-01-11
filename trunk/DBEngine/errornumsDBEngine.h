@@ -103,4 +103,16 @@
 //-2034 = "Query is wrong. Multiple values has been specified"
 
 #define QUERYLENGTHERROR -2035
-//-2034 = "Query is wrong. Length of the specified string exceeds boundaries"
+//-2035 = "Query is wrong. Length of the specified string exceeds boundaries"
+
+#define INDEXENTRYEXISTSERROR -2036
+//-2036 = "Create Index: Index Name already exists."
+
+#define INDEXCREATETABLENAMENOTFOUND -2037
+//-2037 = "Create Index: Table Name not found"
+
+#define INDEXCREATECOLUMNNAMENOTFOUND -2038
+//-2038 = "Create Index: Column Name not found"
+
+#define INDEXCREATEMULTICOLUMNINDEXNOTSUPPORTED -2039
+//-2039 = "Create Index: Multi-column Indexing is not supported"
