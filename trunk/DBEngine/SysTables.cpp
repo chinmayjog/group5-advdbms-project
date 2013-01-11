@@ -691,6 +691,66 @@ int SysTables::deleteSysTableEntry(string tabName,string dbName,char * sysTableB
 	return i+1; // SysTableEntry deleted Found at (i+1)th slot
 }
 
+int SysTables::searchSysTableEntry(string tabName,char * sysTableBuffer)
+{
+	// Function to search for SysTable entry
+	// Gets the no. of entries and searches from 0 to noOfEntries*sizeof(Entry)
+	// Returns position + 1 so... When getting the position, the caller should subtract 1
+
+	bool found = 0;
+	int entryID,i;
+	char entryDeleted;
+
+	for(i=0;i<_noOfEntries;i++)
+	{
+
+		memcpy(&entryDeleted,&sysTableBuffer[FIRSTSYSTABSLOTPTR-(i*SYSTABSLOTSIZE)],SYSTABSLOTSIZE);
+		if(entryDeleted == '0')
+		{
+			if(debugFlag == true)
+				writeLog("The entry is deleted... Don't search there....."+(i+1));
+			continue;
+		}
+		char * newEntryBuff = new char [SYSTABLEENTRYSIZE];
+
+		memcpy(newEntryBuff,&sysTableBuffer[0+(i*SYSTABLEENTRYSIZE)],SYSTABLEENTRYSIZE);
+
+		char * tableName = new char [64];
+		
+		memcpy(tableName,&newEntryBuff[SYSTABTABLENAMEPTR],64*sizeof(char));
+
+		string entryTableName;
+		for(int j=0;j<64;j++)
+		{
+			if(tableName[j] == '$')
+				break;
+			entryTableName = entryTableName+tableName[j];
+		}
+
+		if(tabName == entryTableName)
+		{
+			found = 1;
+			entryID = i;
+			delete tableName;
+			delete newEntryBuff;
+			break;
+		}
+
+		delete tableName;
+		delete newEntryBuff;
+	}
+
+	if(found == 1)
+	{
+		if(debugFlag == true)
+			writeLog("Entry found... Do not search in other pages......\n Entry found at the slot"+(i+1));
+		return i+1;
+	}
+	if(debugFlag == true)
+		writeLog("Entry not found in this page.... Continue searching..."+_pageID);
+	return -1;
+}
+
 int SysTables::searchSysTableEntry(string tabName,string dbName,char * sysTableBuffer)
 {
 	// Function to search for SysTable entry

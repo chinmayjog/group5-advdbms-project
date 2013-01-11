@@ -655,15 +655,14 @@ short retDataTypeID(char *dataType)
 	dataTypes[13] = "DECFLOAT";
 	dataTypes[14] = "DTIMETZ$";
 
-	int i;
+	int dCount = 0;
 
-	for(i=0;i<15;i++)
+	for(dCount=0;dCount<15;dCount++)
 	{
-		if(strncmp(dataType,dataTypes[i].c_str(),8)==0)
-			return i+1;
-		else
-			return -1;
+		if(strncmp(dataType,dataTypes[dCount].c_str(),8)==0)
+			return dCount+1;
 	}
+	return -1;
 }
 
 short retDataTypeSize(short dataTypeID,short length)
