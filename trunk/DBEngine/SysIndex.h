@@ -62,9 +62,9 @@ class SysIndexEntry
 	
 	public: SysIndexEntry()
 		{
-			_indexName = "Index Name";
-			_dbName = "Database Name";
-			_tableName = "Table Name";
+			_indexName = "\0";
+			_dbName = "\0";
+			_tableName = "\0";
 			_uniqueRule = 'P';
 			_colCount = 0;
 			_fanOutNo = 0;
