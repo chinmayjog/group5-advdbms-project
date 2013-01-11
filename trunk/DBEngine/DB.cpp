@@ -2556,7 +2556,7 @@ int DB::useDB(query q)
 	//delete sysTabBuff;
 
 	// Read all the SysColumn pages
-	cout<<"Reading SysColumn pages"<<endl;
+	//cout<<"Reading SysColumn pages"<<endl;
 	char * sysColBuff = new char [pageSize];
 	nextPTR = _sysColumnsPTR,curPTR = -1;
 	_noSysColumnPages = 0;

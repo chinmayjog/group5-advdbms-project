@@ -156,8 +156,8 @@ class DB
 		}
 
 		// Making these methods friends as Indexing also needs these function calls to get the Free page and to add the Free page
-		friend int getFreePage(DB * curDB);
-		friend int addFreePageList(DB * curDB,int pageID);
+		int getFreePage();
+		int addFreePageList(int pageID);
 
 		// This is the function which will call the main database queries. Parser will call this method. Check pageSize before execution of the query here itself And throw error if the two are different
 		friend int mainDB(DB * curDB,query q);
