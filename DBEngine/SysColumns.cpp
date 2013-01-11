@@ -453,8 +453,8 @@ int SysColumnsEntry::getDataBuffer(char *entryBuffer)
 	}
 	for(int i=0;i<8;i++)
 	{
-		if(dataTypeBuf[i] == '$')
-			break;
+		//if(dataTypeBuf[i] == '$')
+		//	break;
 		_dataType = _dataType+dataTypeBuf[i];
 	}
 
