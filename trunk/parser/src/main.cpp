@@ -92,6 +92,7 @@ int main( int argc, char *argv[] ) {
 		cout<<"\ndb> ";
 		std::getline(cin, s);	
 		if(s=="exit" || s=="exit;") {
+			(*bu).commitCache();
 			break;
 		}
 		else if(s=="$cache"){
