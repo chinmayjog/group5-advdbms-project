@@ -27,7 +27,7 @@ void executeQuery(DB *curDB, string s){
 			else if(!strcmp(q->type,"SHOWDB")){
 				result = curDB->showDB(q);
 				if(result > 0){
-					for(int i = 0; i < q->countResults; i++){
+					for(int i = 0; i < q->cntColumns; i++){
 						cout<<q->results[i]<<endl;
 					}
 				}
@@ -35,7 +35,7 @@ void executeQuery(DB *curDB, string s){
 			else if(!strcmp(q->type,"SHOWTBL")){
 				result = curDB->showTables(q);
 				if(result > 0){
-					for(int i = 0; i < q->countResults; i++){
+					for(int i = 0; i < q->cntColumns; i++){
 						cout<<q->results[i]<<endl;
 					}
 				}
