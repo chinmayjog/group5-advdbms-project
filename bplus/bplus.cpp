@@ -12,7 +12,8 @@
 #include<fcntl.h>
 #include<ctype.h>
 #include<queue>
-#include"BufferManager.h"
+#include"../cachemgr/src/BufferManager.h"
+
 
 #define page_size 2048
 #define SIZEOFSTR 256
@@ -85,7 +86,7 @@ class btree
 	void write_internal_page(internal_node*,T);
 	//void write_internal_page(internal_node*,string);
 	void delete_val();
-	void deleting(T,struct RID);
+	int deleting(T,struct RID);
 	void delete_leaf(leaf_node*,T,internal_node*,struct RID);
 	void combine_leaf(leaf_node*,internal_node*,T); 
 	void combine_internal(internal_node*,internal_node*);
@@ -188,8 +189,7 @@ void btree<T>::start()
 		cout<<endl<<"	13.Modify";	
 		cout<<endl<<"	14.Drop index";
 		cout<<endl<<"	15.Close index";
-		cout<<endl<<"	16.Cache Manager";
-		cout<<endl<<"	17.Quit";
+		cout<<endl<<"	16.Quit";
 		cout<<endl;
 		cin>>choice;
 		if(choice==1)
@@ -259,7 +259,9 @@ void btree<T>::start()
 				//rid_temp.page_no = 1;
 				cout<<endl<<"Enter rid slot_no";
 				cin>>rid_temp.slot_no;
-				deleting(n,rid_temp);
+				int value = deleting(n,rid_temp);
+				if(value==0)
+				cout<<"Key Value doesnt exist";
 			}
 		}
 		else if(choice==7)
@@ -337,10 +339,8 @@ void btree<T>::start()
 			close(index);
 		else if(choice==16)
 		{
-			BufferManagerInterface();
+			return;
 		}	
-		else if(choice==17)		
-			exit(0);
 	}
 }
 
@@ -799,6 +799,8 @@ void btree<T>::bulk_search(T n1,T n2,T step_size)
 		{
 			*pos = *pos +1;
 			i = l_temp->key[*pos];
+			tr.page_no = (l_temp->rid[*pos]).page_no;
+			tr.slot_no = (l_temp->rid[*pos]).slot_no; 
 		}
 		else if(l_temp->next!=-1)
 		{
@@ -806,20 +808,16 @@ void btree<T>::bulk_search(T n1,T n2,T step_size)
 			l_temp = read_leaf_page(page_num,val);
 			*pos = 0;
 			i = l_temp->key[*pos];
+			tr.page_no = (l_temp->rid[*pos]).page_no;
+			tr.slot_no = (l_temp->rid[*pos]).slot_no; 
 		}
-		tr.page_no = (l_temp->rid[*pos]).page_no;
-		tr.slot_no = (l_temp->rid[*pos]).slot_no; 
+		else
+		{
+			break;
+		}
+		
 		//count++;
 	}		
-	//int count=;
-	/*while(i<=n2)
-	{
-		tr.page_no = 1;
-		tr.slot_no = count; 
-		searching(i,tr);
-		i = i+step_size;
-		count++;
-	}*/
 }
 
 
@@ -2029,6 +2027,7 @@ void btree<T>::write_internal_page(struct internal_node *i_read,T val)
 		memcpy(&(buffer_page[PAGE_PRIORITY]),&(page_priority),sizeof(int));
 		memcpy(&(buffer_page[NEXT]),&(next),sizeof(int));
 		memcpy(&(buffer_page[PREV]),&(prev),sizeof(int));
+		
 		j = 0; 
 		for(i=0;i<i_read->num_nodes;i++)
 		{
@@ -2069,7 +2068,7 @@ void btree<T>::write_internal_page(struct internal_node *i_read,T val)
 		}
 		ptrs = i_read->ptrs[i];
 		memcpy(&buffer_page[j],&ptrs,sizeof(int));
-		(*bu).writeDB(0,page_no,PagePriority(page_priority),buffer_page);
+		bool flag = (*bu).writeDB(0,page_no,PagePriority(page_priority),buffer_page);
 		//return buffer_page; (Call chinmay's function)
 	}
 }
@@ -2154,26 +2153,27 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 	T keys[FANOUT],temp1;
 	int pointers[FANOUT+1];
 	internal_node *temp_int = NULL;
+	internal_node *child = NULL;
 	internal_node *temp_node = NULL;
 	leaf_node *temp_node_leaf = new leaf_node;
 	internal_node *tmp_node = NULL;
 //Root
 	page_num = int_temp->ptrs[0];
 	if(int_temp->level > 1)
-		temp_int = read_internal_page(page_num,2,value);
+		child = read_internal_page(page_num,2,value);
 	else
 	{
 		temp_node_leaf = read_leaf_page(page_num,value);
-		temp_int = (internal_node*)temp_node_leaf;
+		child = (internal_node*)temp_node_leaf;
 	}
 	page_num = root->page_no;
 	root = read_internal_page(page_num,3,value);
 	if(int_temp->page_no==root->page_no)
 	{
-		if(int_temp->num_nodes==0 && temp_int->level!=0)
+		if(int_temp->num_nodes==0 && child->level!=0)
 		{	
-			temp_int->page_priority = 3;
-			root=temp_int;
+			child->page_priority = 3;
+			root=child;
 			write_internal_page(root,value);
 		}
 	}
@@ -2199,18 +2199,7 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				temp_int = (internal_node*)temp_node_leaf;
 			}
 		}
-		else if(pos!=0)
-		{
-			page_num = parent->ptrs[pos-1];
-			if(int_temp->level >= 1)
-				temp_int = read_internal_page(page_num,2,value);
-			else
-			{
-				temp_node_leaf = read_leaf_page(page_num,value);
-				temp_int = (internal_node*)temp_node_leaf;
-			}
-		}
-		else if(pos!=parent->num_nodes)
+		else if(pos!=0 && pos<parent->num_nodes)
 		{
 			page_num = parent->ptrs[pos+1];
 			if(int_temp->level >= 1)
@@ -2221,27 +2210,71 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				temp_int = (internal_node*)temp_node_leaf;
 			}
 		}
+		else if(pos==parent->num_nodes)
+		{
+			page_num = parent->ptrs[pos-1];
+			if(int_temp->level >= 1)
+				temp_int = read_internal_page(page_num,2,value);
+			else
+			{
+				temp_node_leaf = read_leaf_page(page_num,value);
+				temp_int = (internal_node*)temp_node_leaf;
+			}
+		}
 
-		if(pos==0 && (temp_int->num_nodes + int_temp->num_nodes)>=FANOUT)//right
+		if(pos==0 && (temp_int->num_nodes + int_temp->num_nodes)>=FANOUT)//right node redistribution
 		{
 			if(FANOUT%2==0) 
 				val=FANOUT/2;
 			else
-				 val=(FANOUT/2);	
+				 val=(FANOUT/2)+1;	
 			j=0;
 			len=temp_int->num_nodes;
+			(int_temp->key).push_back(parent->key[0]);
+			i = int_temp->num_nodes;
+			int_temp->ptrs[i+1]=temp_int->ptrs[j];
+			int_temp->num_nodes++;
+			page_num = temp_int->ptrs[j];
+			if(int_temp->level > 1)
+				temp_node = read_internal_page(page_num,2,value);
+			else
+			{
+				temp_node_leaf = read_leaf_page(page_num,value);
+				temp_node = (internal_node*)temp_node_leaf;
+			}
+			if(temp_node->level==0)
+			{
+				temp_node_leaf->parent_node = int_temp->page_no;
+				temp_node = (internal_node*)temp_node_leaf;
+			}
+			else
+				temp_node->parent_node = int_temp->page_no;
+			j=0;
+
 			for(i=int_temp->num_nodes;i<val-1;i++)
 			{
 				(int_temp->key).push_back(temp_int->key[j]);
-				int_temp->ptrs[i+1]=temp_int->ptrs[j];
+				int_temp->ptrs[i+1]=temp_int->ptrs[j+1];
+				page_num = temp_int->ptrs[j+1];
+				if(int_temp->level > 1)
+					temp_node = read_internal_page(page_num,2,value);
+				else
+				{
+					temp_node_leaf = read_leaf_page(page_num,value);
+					temp_node = (internal_node*)temp_node_leaf;
+				}
+				if(temp_node->level==0)
+				{
+					temp_node_leaf->parent_node = int_temp->page_no;
+					temp_node = (internal_node*)temp_node_leaf;
+				}
+				else
+					temp_node->parent_node = int_temp->page_no;
 				j++;
 				temp_int->num_nodes--;
 				int_temp->num_nodes++;
 			}
-			(int_temp->key).push_back(parent->key[0]);
-			int_temp->ptrs[i+1]=temp_int->ptrs[j];
-			parent->key[0] = temp_int->key[0];
-			j++;
+			
 	
 			i=0;		
 			temp_int->num_nodes=0;
@@ -2252,8 +2285,9 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				i++;
 				temp_int->num_nodes++;
 			}
+			parent->key[0] = temp_int->key[0];
 			temp_int->ptrs[i]=temp_int->ptrs[j];
-			cout<<endl<<"Nodes redistributed in deletion process in the internal nodes";
+			
 			write_internal_page(parent,value);
 			if(int_temp->level >= 1)
 				write_internal_page(temp_int,value);
@@ -2266,7 +2300,7 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				write_leaf_page((leaf_node*)int_temp,value);
 			
 		}	
-		else if(pos!=0 && (temp_int->num_nodes + int_temp->num_nodes)>=FANOUT)//left
+		else if(pos==parent->num_nodes && (temp_int->num_nodes + int_temp->num_nodes)>=FANOUT)//left
 		{
 			if(FANOUT%2==0)
 				val=FANOUT/2;
@@ -2291,8 +2325,8 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 			j=0;
 			for(;i<k;i++)
 			{
-				int_temp->key[j]=temp_int->key[i];
-				//(int_temp->key).push_back(temp_int->key[i]);
+				//int_temp->key[j]=temp_int->key[i];
+				(int_temp->key).push_back(temp_int->key[i]);
 				int_temp->ptrs[j]= temp_int->ptrs[i]; //added +1 
 				j++;
 				temp_int->num_nodes--;
@@ -2310,7 +2344,7 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				int_temp->num_nodes++;
 			}
 			int_temp->ptrs[j]=pointers[i];
-			cout<<endl<<"Nodes redistributed in deletion process";	
+				
 
 			write_internal_page(parent,value);
 
@@ -2325,60 +2359,74 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				write_leaf_page((leaf_node*)int_temp,value);
 		
 		}	
-		else if(pos!=parent->num_nodes && (temp_int->num_nodes + int_temp->num_nodes)>=FANOUT)//right
+		else if(pos!=parent->num_nodes && pos!=0 && (temp_int->num_nodes + int_temp->num_nodes)>=FANOUT)//right
 		{
 			if(FANOUT%2==0) 
 				val=FANOUT/2;
 			else
 				val=(FANOUT/2)+1;	
 			j=0;
+
 			len=temp_int->num_nodes;
+			(int_temp->key).push_back(parent->key[pos]);
+			i = int_temp->num_nodes;
+			int_temp->ptrs[i+1]=temp_int->ptrs[j];
+			int_temp->num_nodes++;
+			page_num = temp_int->ptrs[j];
+			if(int_temp->level > 1)
+				temp_node = read_internal_page(page_num,2,value);
+			else
+			{
+				temp_node_leaf = read_leaf_page(page_num,value);
+				temp_node = (internal_node*)temp_node_leaf;
+			}
+			if(temp_node->level==0)
+			{
+				temp_node_leaf->parent_node = int_temp->page_no;
+				temp_node = (internal_node*)temp_node_leaf;
+			}
+			else
+				temp_node->parent_node = int_temp->page_no;
+			j=0;
+
 			for(i=int_temp->num_nodes;i<val-1;i++)
 			{
-				page_num = int_temp->ptrs[i];
-				temp_node = read_internal_page(page_num,2,value);
-				(int_temp->key).push_back(temp_node->key[(temp_node->num_nodes)-1]);
-				int_temp->ptrs[i+1]=temp_int->ptrs[j];
+				(int_temp->key).push_back(temp_int->key[j]);
+				int_temp->ptrs[i+1]=temp_int->ptrs[j+1];
+				page_num = temp_int->ptrs[j+1];
+				if(int_temp->level > 1)
+					temp_node = read_internal_page(page_num,2,value);
+				else
+				{
+					temp_node_leaf = read_leaf_page(page_num,value);
+					temp_node = (internal_node*)temp_node_leaf;
+				}
+				if(temp_node->level==0)
+				{
+					temp_node_leaf->parent_node = int_temp->page_no;
+					temp_node = (internal_node*)temp_node_leaf;
+				}
+				else
+					temp_node->parent_node = int_temp->page_no;
+				j++;
 				temp_int->num_nodes--;
 				int_temp->num_nodes++;
-				j++;
-			}	
-			//int_temp->key[int_temp->num_nodes] = parent->key[pos];
-			//int_temp->num_nodes++;
-			//int_temp->ptrs[i+1]=parent->ptrs[pos+1]->ptrs[j];
-			//parent->ptrs[pos+1]->num_nodes--;
-			//int_temp->ptrs[int_temp->num_nodes]=parent->ptrs[pos+1]->ptrs[j];
-			//parent->ptrs[pos+1]->num_nodes--;
-			//j++;
-			//int_temp->ptrs[]
-			/*for(i=int_temp->num_nodes;i<val-1;i++)
-			{
-				int_temp->key[i] = parent->ptrs[pos+1]->key[j];
-				int_temp->ptrs[i+1]=parent->ptrs[pos+1]->ptrs[j];
-				j++;
-				parent->ptrs[pos+1]->num_nodes--;
-				int_temp->num_nodes++;
-			}*/
-			//int_temp->key[i] = parent->ptrs[pos+1]->key[j];
-			//int_temp->ptrs[i]=parent->ptrs[pos+1]->ptrs[j];
-			//parent->key[pos] = parent->ptrs[pos+1]->key[pos];
-			parent->key[pos] = temp_int->key[j-1];
-			//j++;
+			}
+			
 	
 			i=0;		
 			temp_int->num_nodes=0;
 			for(;j<len;j++)
 			{
 				temp_int->key[i] = temp_int->key[j];
-				temp_int->ptrs[i]= temp_int->ptrs[j];
+				temp_int->ptrs[i]=temp_int->ptrs[j];
 				i++;
 				temp_int->num_nodes++;
 			}
-			temp_int->ptrs[i] = temp_int->ptrs[j];
-			cout<<endl<<"Nodes redistributed in deletion process in the internal nodes";
+			parent->key[pos] = temp_int->key[0];
+			temp_int->ptrs[i]=temp_int->ptrs[j];
 			
 			write_internal_page(parent,value);
-			
 			if(int_temp->level >= 1)
 				write_internal_page(temp_int,value);
 			else
@@ -2388,7 +2436,7 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				write_internal_page(int_temp,value);
 			else
 				write_leaf_page((leaf_node*)int_temp,value);
-			
+
 		}
 //Merging nodes	
 		else
@@ -2505,11 +2553,11 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 					}
 					if(temp_node->level==0)
 					{
-						temp_node_leaf->parent_node = parent->ptrs[pos-1];
+						temp_node_leaf->parent_node = temp_int->page_no;
 						temp_node = (internal_node*)temp_node_leaf;
 					}
 					else
-						temp_node->parent_node = parent->ptrs[pos-1];
+						temp_node->parent_node = temp_int->page_no;
 					j++;
 					temp_node->num_nodes++;
 				}
@@ -2868,7 +2916,7 @@ void btree<T>::delete_leaf(leaf_node* l_temp,T num,internal_node* parent,struct 
 }
 
 template <class T>
-void btree<T>::deleting(T num,struct RID rid)
+int btree<T>::deleting(T num,struct RID rid)
 {
 	int r=0,res1 = 0;
 	int page_num;
@@ -2897,12 +2945,11 @@ void btree<T>::deleting(T num,struct RID rid)
 			parent = read_internal_page(page_num,3,val);		
 			else
 			parent = read_internal_page(page_num,2,val);		
-			delete_leaf(l_temp,num,parent,rid);
-		//write_internal_page(parent);
 			
+			delete_leaf(l_temp,num,parent,rid);
 		}
 		else
-			cout<<endl<<"Sorry number to be deleted not found ";
+			return 0;
 	}
 	else
 	{
@@ -2922,6 +2969,7 @@ void btree<T>::deleting(T num,struct RID rid)
 			delete_leaf(l_temp,num,parent,rid);
 		}
 	}
+	return 1;
 }
 
 
@@ -2998,6 +3046,8 @@ void btree<T>::bulk_delete(T n1,T n2, T step_size)
 		{
 			//*pos = *pos +1;
 			i = l_temp->key[*pos];
+			tr.page_no = (l_temp->rid[*pos]).page_no;
+		tr.slot_no = (l_temp->rid[*pos]).slot_no; 
 		}
 		else if(l_temp->next!=-1)
 		{
@@ -3005,9 +3055,13 @@ void btree<T>::bulk_delete(T n1,T n2, T step_size)
 			l_temp = read_leaf_page(page_num,val);
 			*pos = 0;
 			i = l_temp->key[*pos];
-		}
-		tr.page_no = (l_temp->rid[*pos]).page_no;
+			tr.page_no = (l_temp->rid[*pos]).page_no;
 		tr.slot_no = (l_temp->rid[*pos]).slot_no; 
+		}
+		else
+		{
+			break;
+		}
 		//count++;
 	}		
 }
@@ -3644,13 +3698,13 @@ void btree<T>::bulk_insert(T n1,T n2,T step_size)
 
 int main()
 {
-	
+	string filepath = "../testDB/";
 	BufferManager *bu = BufferManager::getBufferManager();
-	(*bu).createDB("index",2048000);
-	int flag = (*bu).openDB("index");
-	cout<<"Flag:"<<flag<<endl<<"PageSize:"<<(*bu).getPageSize()<<endl;
 	(*bu).setPageSize(page_size);
 	(*bu).initializeCache(1000);
+	(*bu).createDB("../testDB/","index.txt",2048000);
+	int flag = (*bu).openDB("../testDB/","index.txt");
+	cout<<"Flag:"<<flag<<endl<<"PageCount:"<<(*bu).getPageCount(flag)<<endl;
 	string data;
 	cout<<endl<<"Data type to be indexed:";
 	cin>>data;

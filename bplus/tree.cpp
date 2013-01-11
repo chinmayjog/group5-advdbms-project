@@ -1,9 +1,10 @@
 
-#include"BufferManager.h"
+#include"../cachemgr/src/BufferManager.h"
 #include"globals_index.h"
-#include"DB.h"
+#include"../DBEngine/IndexQuery.h"
 
 int getFreePage(DB*);
+int addFreePageList(DB * curDB,int pageID);
 
 int SIZEOFSTR;
 int FANOUT;
@@ -41,11 +42,12 @@ class btree
 		vector<T> key;//[FANOUT+1];
 		vector<RecordID> rid;//[FANOUT+1];
 	}leaf;
+	int _pageSize;
 	internal_node *root;	
 	int found;
 	string index_file;
 	T step;
-	btree();
+	btree(IndexQuery*);
 	IndexQuery* start(IndexQuery*);
 	IndexQuery* create(IndexQuery*);
 	IndexQuery* insert_val(IndexQuery*);
@@ -67,8 +69,8 @@ class btree
 	void delete_leaf(leaf_node*,T,internal_node*,RecordID);
 	void combine_leaf(leaf_node*,internal_node*,T); 
 	void combine_internal(internal_node*,internal_node*);
-	IndexQuery* delete_dup(T,query,int*);
-	IndexQuery* bulk_delete(T,T,query);
+	IndexQuery* delete_dup(T,IndexQuery*,int*);
+	IndexQuery* bulk_delete(T,T,IndexQuery*);
 
 	IndexQuery* insert_key(T,RecordID,IndexQuery*);
 	void insert_leaf(leaf_node*,T,internal_node*,RecordID,IndexQuery*);
@@ -94,40 +96,63 @@ class btree
 	RecordID* bulk_search(T,T,IndexQuery*);
 	RecordID* search_dup(T,IndexQuery*,int*);
 	
-	IndexQUery* modify(T,RecordID,IndexQuery*);
+	IndexQuery* modify(T,RecordID,IndexQuery*);
 	
 	int compute_fanout(int);	
 };
 
 template <class T>
-btree<T>::btree()
+btree<T>::btree(IndexQuery *query)
 {
 	T val;
-	root = new internal_node;
-	root->key.resize(FANOUT+1);
-	root->ptrs.resize(FANOUT+2);
-	root->page_no = getFreePage(query->curDB);
-	leaf_node *l_temp = new leaf_node;
-	l_temp->key.resize(FANOUT+1);
-	l_temp->rid.resize(FANOUT+1);
-	l_temp->level=0;
-	l_temp->page_priority = 1;
-	l_temp->num_nodes=0;
-	l_temp->page_no = getFreePage(query->curDB); //Calling KP's get free page structure...
-	l_temp->next=-1;
-	l_temp->prev=-1;
+	BufferManager *bu = BufferManager::getBufferManager();
+	_pageSize = (*bu).getPageSize();
+	SIZEOFSTR = query->charLength;
+	length = query->charLength;
+	data_type = query->dataType;
+	key_size = query->charLength;
+	if(query->isPrimary==true)	
+	primary = "y";
+	else 
+	primary = "n";
+
+	if(query->rootPageID==-1)
+	{
+		FANOUT = compute_fanout(key_size);
+		query->fanOutChanged = true;
+		query->newFanOut = FANOUT;
+		root = new internal_node;
+		root->key.resize(FANOUT+1);
+		root->ptrs.resize(FANOUT+2);
+		root->page_no = getFreePage(query->curDB);
+		leaf_node *l_temp = new leaf_node;
+		l_temp->key.resize(FANOUT+1);
+		l_temp->rid.resize(FANOUT+1);
+		l_temp->level=0;
+		l_temp->page_priority = 1;
+		l_temp->num_nodes=0;
+		l_temp->page_no = getFreePage(query->curDB); //Calling KP's get free page structure...
+		l_temp->next=-1;
+		l_temp->prev=-1;
 	
 	
-	root->level=1;
-	root->page_priority = 3;
-	root->num_nodes=0;
-	root->ptrs[0]=l_temp->page_no;
-	root->parent_node = -1;
-	l_temp->parent_node = root->page_no;
-	//buffer = get_free_page();
+		root->level=1;
+		root->page_priority = 3;
+		root->num_nodes=0;
+		root->ptrs[0]=l_temp->page_no;
+		root->parent_node = -1;
+		l_temp->parent_node = root->page_no;
+		//buffer = get_free_page();
 	
 		write_internal_page(root,val);
 		write_leaf_page(l_temp,val);
+	}
+	else
+	{
+		root = read_internal_page(query->rootPageID,3,val);
+		FANOUT = query->fanOut;
+		query->fanOutChanged = false;
+	}
 }
 
 template<class T>
@@ -169,9 +194,9 @@ IndexQuery* btree<T>::start(IndexQuery *query)
 	}
 	else if(query->queryType==8)
 	{
-		result = delete_record(query) //deletion on d basis of key and rid
+		result = delete_record(query); //deletion on d basis of key and rid
 	}
-	else if(query->Type==8)
+	else if(query->queryType==9)
 	{
 		result = drop(query);	
 	}
@@ -180,17 +205,15 @@ IndexQuery* btree<T>::start(IndexQuery *query)
 }
 
 
+
 template <class T>
 IndexQuery* btree<T>::create(IndexQuery *query)
 {
 	data_type = query->dataType;
-	SIZEOFSTR = query->charLength;
+	key_size = query->charLength;
 	FANOUT = compute_fanout(key_size);
+	query->fanOut = FANOUT;
 	query->rootPageID = root->page_no;
-	if(query->isPrimary==1)	
-	primary = "y";
-	else 
-	primary = "n";
 	return query;
 }
 
@@ -200,7 +223,7 @@ IndexQuery* btree<T>::insert_val(IndexQuery *query)
 	RecordID rid;
 	int length;
 	T num,val;
-	root = read_internal_page(rootPageID,3,val);
+	root = read_internal_page(query->rootPageID,3,val);
 	if(data_type=="int")
 		length = sizeof(int);
 	else if(data_type=="string")
@@ -219,7 +242,7 @@ IndexQuery* btree<T>::insert_val(IndexQuery *query)
 	   length = 20;
 	int j=0;
 	memcpy(&num,&query->key[j],length);
-	memcpy(&rid,&query->keyRecord[j],sizeof(RecordID)); 
+	memcpy(&rid,&(query->keyRecord),sizeof(RecordID)); 
 	query = insert_key(num,rid,query);
 	return query;		
 }
@@ -231,7 +254,7 @@ IndexQuery* btree<T>::insert_check(IndexQuery *query)
 	int r=0,p=-1;
 	int *flag = &r,*pos = &p;
 	struct leaf_node *l_temp = NULL;
-	root = read_internal_page(rootPageID,3,val);
+	root = read_internal_page(query->rootPageID,3,val);
 	if(data_type=="int")
 		length = sizeof(int);
 	else if(data_type=="string")
@@ -268,16 +291,17 @@ IndexQuery* btree<T>::search(IndexQuery *query)
 	T num;
 	RecordID *record;
 	j=0;
-	memcpy(&num,&query->key[j],length);
-	if(query->operatorID.compare("=")==0)
+	struct leaf_node *l_temp = NULL;
+	memcpy(&num,&query->key[j],query->charLength);
+	if((string(query->operatorID)).compare("=")==0)
 	{
 		if(primary=="y")
 		{
 			l_temp = searching_key(num,flag,pos);
 			if(*flag==1)
 			{
-				(query->keyRecords).dataPageID = (l_temp->rid[*pos]).dataPageID; 
-				(query->keyRecords).slotID = (l_temp->rid[*pos]).slotID; 
+				(*(query->keyRecords[0])).dataPageID = (l_temp->rid[*pos]).dataPageID; 
+				(*(query->keyRecords[0])).slotID = (l_temp->rid[*pos]).slotID; 
 				query->totalResults = 1;
 				query->returnedKeys = 1;
 			}
@@ -302,13 +326,13 @@ IndexQuery* btree<T>::search(IndexQuery *query)
 			}
 		}
 	}
-	else if(query->operatorID.compare("<=")==0 || query->operatorID.compare("<")==0)
+	else if(string(query->operatorID).compare("<=")==0 || string(query->operatorID).compare("<")==0)
 	{
 		T v1 = find_limit(query->operatorID);
 		record = bulk_search(v1,num,query);	
 		query = return_result(query,record);
 	}
-	else if(query->operatorID.compare(">=")==0 || query->operatorID.compare(">")==0)
+	else if(string(query->operatorID).compare(">=")==0 || string(query->operatorID).compare(">")==0)
 	{
 		T v2 = find_limit(query->operatorID);
 		record = bulk_search(num,v2,query);
@@ -324,8 +348,8 @@ IndexQuery* btree<T>::update_key(IndexQuery *query)
 	RecordID rid;
 	int j=0;
 	length = query->charLength;
-	memcpy(&num,&query->oldKey[j],length);
-	memcpy(&rid,&query->oldKeyRecord[j],sizeof(RecordID));
+	memcpy(&num,&query->oldKey,length);
+	memcpy(&rid,&query->oldKeyRecord,sizeof(RecordID));
 	query = modify(num,rid,query);
 	return query;
 }
@@ -337,8 +361,8 @@ IndexQuery* btree<T>::update_record(IndexQuery *query)
 	RecordID rid;
 	int j=0;
 	length = query->charLength;
-	memcpy(&num,&query->oldKey[j],length);
-	memcpy(&rid,&query->oldKeyRecord[j],sizeof(RecordID));
+	memcpy(&num,&query->oldKey,length);
+	memcpy(&rid,&query->oldKeyRecord,sizeof(RecordID));
 	query = modify(num,rid,query);
 	return query;
 }
@@ -351,9 +375,10 @@ IndexQuery* btree<T>::delete_key(IndexQuery *query)
 	int *check = &l;
 	T num;
 	RecordID rid;
+	struct leaf_node* l_temp = NULL;
 	j=0;
-	memcpy(&num,&query->key[j],length);
-	if(query->operatorID.compare("=")==0)
+	memcpy(&num,&query->key[j],query->charLength);
+	if((string(query->operatorID)).compare("=")==0)
 	{
 		if(primary=="y")
 		{
@@ -381,12 +406,12 @@ IndexQuery* btree<T>::delete_key(IndexQuery *query)
 			}
 		}
 	}
-	else if(query->operatorID.compare("<=")==0)
+	else if((string(query->operatorID)).compare("<=")==0)
 	{
 		T v1 = find_limit(query->operatorID);
 		query = bulk_delete(v1,num,query);	
 	}
-	else if(query->operatorID.compare(">=")==0)
+	else if((string(query->operatorID)).compare(">=")==0)
 	{
 		T v2 = find_limit(query->operatorID);
 		query = bulk_delete(num,v2,query);
@@ -402,7 +427,7 @@ IndexQuery* btree<T>::delete_record(IndexQuery *query)
 	int j=0;
 	length = query->charLength;
 	memcpy(&num,&query->key[j],length);
-	memcpy(&rid,&query->keyRecord[j],sizeof(RecordID));
+	memcpy(&rid,&query->keyRecord,sizeof(RecordID));
 	query = deleting(num,rid,query);
 	return query;
 }
@@ -433,11 +458,11 @@ IndexQuery* btree<T>::drop(IndexQuery *query)
 		if(int_temp->level==0)
 		{
 			l_temp = (leaf_node*)int_temp;
-			DB::addFreePageList(l_temp->page_no); //adding all pages in a queue and calling addFreePageList one by one,...
+			addFreePageList(query->curDB,l_temp->page_no); //adding all pages in a queue and calling addFreePageList one by one,...
 		}
 		else
 		{ 
-			DB::addFreePageList(int_temp->page_no);
+			addFreePageList(query->curDB,int_temp->page_no);
 			for(i=0;i<=int_temp->num_nodes && int_temp->level>1;i++)
 			{
 				page_num = int_temp->ptrs[i];
@@ -465,6 +490,7 @@ IndexQuery* btree<T>::drop(IndexQuery *query)
 template <class T>
 IndexQuery* btree<T>::return_result(IndexQuery *query,RecordID *record)
 {
+	int j;
 	if(query->lastKeyID !=1) //when not set
 	{		
 		if(query->limitKeys < query->totalResults)
@@ -474,8 +500,8 @@ IndexQuery* btree<T>::return_result(IndexQuery *query,RecordID *record)
 			j=1;
 			while(j<=query->limitKeys)
 			{
-				(query->keyRecords[j]).dataPageID = (record[j]).dataPageID;
-				(query->keyRecords[j]).slotID = (record[j]).slotID;
+				(*(query->keyRecords[j])).dataPageID = (record[j]).dataPageID;
+				(*(query->keyRecords[j])).slotID = (record[j]).slotID;
 			}
 			(query->lastRecordID).dataPageID = record[j-1].dataPageID;
 			(query->lastRecordID).slotID = record[j-1].slotID;
@@ -487,8 +513,8 @@ IndexQuery* btree<T>::return_result(IndexQuery *query,RecordID *record)
 			j=1;
 			while(j<=query->totalResults)
 			{
-				(query->keyRecords[j]).dataPageID = (record[j]).dataPageID;
-				(query->keyRecords[j]).slotID = (record[j]).slotID;
+				(*(query->keyRecords[j])).dataPageID = (record[j]).dataPageID;
+				(*(query->keyRecords[j])).slotID = (record[j]).slotID;
 				j++;
 			}
 			(query->lastRecordID).dataPageID = record[j-1].dataPageID;
@@ -505,8 +531,8 @@ IndexQuery* btree<T>::return_result(IndexQuery *query,RecordID *record)
 			int i = count+1;
 			while(j<=count)
 			{
-				(query->keyRecords[j]).dataPageID = (record[i]).dataPageID;
-				(query->keyRecords[j]).slotID = (record[i]).slotID;
+				(*(query->keyRecords[j])).dataPageID = (record[i]).dataPageID;
+				(*(query->keyRecords[j])).slotID = (record[i]).slotID;
 				j++;
 				i++;
 				query->lastKeyID = 0;
@@ -521,8 +547,8 @@ IndexQuery* btree<T>::return_result(IndexQuery *query,RecordID *record)
 			int i = count+1;
 			while(j <= query->limitKeys)
 			{
-				(query->keyRecords[j]).dataPageID = (record[i]).dataPageID;
-				(query->keyRecords[j]).slotID = (record[i]).slotID;
+				(*(query->keyRecords[j])).dataPageID = (record[i]).dataPageID;
+				(*(query->keyRecords[j])).slotID = (record[i]).slotID;
 				j++;
 				i++;
 				query->lastKeyID = 1;
@@ -537,11 +563,11 @@ IndexQuery* btree<T>::return_result(IndexQuery *query,RecordID *record)
 
 
 template <class T>
-T btree<T>::find_limit(char[] operatorID)
+T btree<T>::find_limit(char* operatorID)
 {
 	T val,num;
 	int page_num;
-	if(operatorID.compare("<=")==0 || operatorID.compare("<")==0)
+	if(string(operatorID).compare("<=")==0 || string(operatorID).compare("<")==0)
 	{
 		internal_node *int_temp = NULL;
 		int_temp = read_internal_page(root->page_no,root->page_priority,val);
@@ -556,7 +582,7 @@ T btree<T>::find_limit(char[] operatorID)
 		delete(int_temp);
 		delete(temp_leaf);
 	}
-	else if(operatorID.compare(">=")==0 || operatorID.compare(">")==0)
+	else if(string(operatorID).compare(">=")==0 || string(operatorID).compare(">")==0)
 	{
 		internal_node *int_temp = NULL;
 		int_temp = read_internal_page(root->page_no,root->page_priority,val);
@@ -578,7 +604,7 @@ template <class T>
 int btree<T>::compute_fanout(int key_size)
 {
 	int fan;
-	fan = (page_size - (7*sizeof(int) + PAGEMETADATA))/ (key_size + sizeof(int)+ sizeof(int)) ;
+	fan = (_pageSize - (7*sizeof(int) + PAGEMETADATA))/ (key_size + sizeof(int)+ sizeof(int)) ;
 	return fan;
 }
 
@@ -790,7 +816,7 @@ RecordID* btree<T>::bulk_search(T n1,T n2,IndexQuery *query)
 			i = l_temp->key[*pos];
 		}
 	}
-	while(i<=n2)
+	while(i<=n2 && l_temp!=NULL)
 	{
 		record[count].dataPageID = tr.dataPageID;
 		record[count].slotID = tr.slotID;
@@ -800,17 +826,29 @@ RecordID* btree<T>::bulk_search(T n1,T n2,IndexQuery *query)
 		{
 			*pos = *pos +1;
 			i = l_temp->key[*pos];
+			tr.dataPageID = (l_temp->rid[*pos]).dataPageID;
+			tr.slotID = (l_temp->rid[*pos]).slotID; 
+			count++;
 		}
 		else if(l_temp->next!=-1)
 		{
 			page_num = l_temp->next;
-			l_temp = read_leaf_page(page_num,val);
-			*pos = 0;
-			i = l_temp->key[*pos];
+			if(page_num!=0)
+			{
+				l_temp = read_leaf_page(page_num,val);
+				*pos = 0;
+				i = l_temp->key[*pos];
+				tr.dataPageID = (l_temp->rid[*pos]).dataPageID;
+				tr.slotID = (l_temp->rid[*pos]).slotID; 
+				count++;
+			}
+			else
+				l_temp = NULL;
 		}
-		tr.dataPageID = (l_temp->rid[*pos]).dataPageID;
-		tr.slotID = (l_temp->rid[*pos]).slotID; 
-		count++;
+		else
+		{
+			break;
+		}	
 	}	
 	query->totalResults = count-1;
 	return record;	
@@ -1371,17 +1409,17 @@ IndexQuery* btree<T>::modify(T data,RecordID rid,IndexQuery *query)
 		if(query->queryType==5)
 		{
 			query = deleting(data,rid,query);
-			memcpy(&num,&query->newKey[j],newKeyLength);
-			memcpy(&tr,&query->newKeyRecord[j],sizeof(RecordID));
+			memcpy(&num,&query->newKey,query->newKeyLength);
+			memcpy(&tr,&query->newKeyRecord,sizeof(RecordID));
 			query = insert_key(num,tr,query);
 		}
 		else if(query->queryType==6)
 		{
-			if(query->isPrimary=="y")
+			if(query->isPrimary==true)
 			{
 				struct leaf_node *l_temp = searching_node(data,rid,pos);
 				j=0;
-				memcpy(&tr,&query->newKeyRecord[j],sizeof(RecordID));
+				memcpy(&tr,&query->newKeyRecord,sizeof(RecordID));
 				l_temp->rid[*pos].dataPageID = 	tr.dataPageID;
 				l_temp->rid[*pos].slotID = tr.slotID;
 				write_leaf_page(l_temp,val);
@@ -1390,7 +1428,7 @@ IndexQuery* btree<T>::modify(T data,RecordID rid,IndexQuery *query)
 			{
 				j=0;
 				query = deleting(data,rid,query);
-				memcpy(&tr,&query->newKeyRecord[j],sizeof(RecordID));
+				memcpy(&tr,&query->newKeyRecord,sizeof(RecordID));
 				query = insert_key(num,tr,query);
 			}
 		}
@@ -1405,9 +1443,10 @@ typename btree<T>::leaf_node* btree<T>::read_leaf_page(int page_no,T val)
 	int level, num_nodes,parent_node,next,prev,page_priority;
 	//int i,j;
 	T num;
-	unsigned char *buffer_page = new unsigned char[page_size];
 	BufferManager *bu = BufferManager::getBufferManager();/*call chinmay's function */
 	//cout<<endl<<"Leaf Page number to read:"<<page_no<<endl;
+	char *buffer_page = new char[_pageSize];
+	
 	(*bu).readDB(0,page_no,PagePriority(1),buffer_page);
 	RecordID rid;
 	size_header = 8*sizeof(int) + sizeof(short);
@@ -1489,9 +1528,11 @@ typename btree<T>::leaf_node* btree<T>::read_leaf_page(int page_no,T val)
 			(l_read->key).push_back(num); //value addition thru vector
 			(l_read->rid).push_back(rid);*/
 		}
+		delete(buffer_page);
 		return l_read;
 	}
 	//cout<<endl<<"Problem is not here but somewhere else..."<<endl;
+	delete(buffer_page);
 	return NULL;
 }
 
@@ -1501,8 +1542,9 @@ typename btree<string>::leaf_node* btree<string>::read_leaf_page(int page_no, st
 	int level, num_nodes,parent_node,next,prev,page_priority;
 	//int i,j;
 	string num;
-	unsigned char *buffer_page = new unsigned char[page_size];
 	BufferManager *bu = BufferManager::getBufferManager();/*call chinmay's function */
+	char *buffer_page = new char[_pageSize];
+	
 	//cout<<endl<<"Leaf Page number to read:"<<page_no<<endl;
 	(*bu).readDB(0,page_no,PagePriority(1),buffer_page);
 	RecordID rid;
@@ -1570,8 +1612,10 @@ typename btree<string>::leaf_node* btree<string>::read_leaf_page(int page_no, st
 				(l_read->rid).push_back(rid);
 			}
 		}
+		delete(buffer_page);
 		return l_read;
 	}
+	delete(buffer_page);
 	//cout<<endl<<"Problem is not here but somewhere else..."<<endl;
 	return NULL;
 }
@@ -1585,9 +1629,10 @@ typename btree<T>::internal_node* btree<T>::read_internal_page(int page_no,int p
 	T num;
 	//cout<<endl<<"Internal Page number to read:"<<page_no<<endl;
 	//RecordID rid;
-	unsigned char *buffer_page = new unsigned char[page_size];
-	//cout<<endl<<"Allocated buffer for page number:"<<page_no<<endl;
 	BufferManager *bu = BufferManager::getBufferManager();/*call chinmay's function */
+	char *buffer_page = new char[_pageSize];
+	//cout<<endl<<"Allocated buffer for page number:"<<page_no<<endl;
+	
 	(*bu).readDB(0,page_no,PagePriority(page_priority),buffer_page);	
 	//cout<<endl<<"Read page number:"<<page_no<<". Now copying values in local variables. "<<endl;
 	size_header = 8*sizeof(int) + sizeof(short);
@@ -1656,8 +1701,10 @@ typename btree<T>::internal_node* btree<T>::read_internal_page(int page_no,int p
 		}
 		memcpy(&ptrs,&buffer_page[j],sizeof(int));
 		(int_read->ptrs).push_back(ptrs);
+		delete(buffer_page);
 		return int_read;	
 	}
+	delete(buffer_page);
 	return NULL;	
 }
 
@@ -1669,9 +1716,10 @@ typename btree<string>::internal_node* btree<string>::read_internal_page(int pag
 	string num;
 	//cout<<endl<<"Internal Page number to read:"<<page_no<<endl;
 	//RecordID rid;
-	unsigned char *buffer_page = new unsigned char[page_size];
-	//cout<<endl<<"Allocated buffer for page number:"<<page_no<<endl;
 	BufferManager *bu = BufferManager::getBufferManager();/*call chinmay's function */
+	char *buffer_page = new char[_pageSize];
+	//cout<<endl<<"Allocated buffer for page number:"<<page_no<<endl;
+	
 	(*bu).readDB(0,page_no,PagePriority(page_priority),buffer_page);	
 	//cout<<endl<<"Read page number:"<<page_no<<". Now copying values in local variables. "<<endl;
 	size_header = 8*sizeof(int) + sizeof(short);
@@ -1740,8 +1788,10 @@ typename btree<string>::internal_node* btree<string>::read_internal_page(int pag
 		}
 		memcpy(&ptrs,&buffer_page[j],sizeof(int));
 		(int_read->ptrs).push_back(ptrs);
+		delete(buffer_page);
 		return int_read;	
 	}
+	delete(buffer_page);
 	return NULL;	
 }
 
@@ -1749,13 +1799,14 @@ typename btree<string>::internal_node* btree<string>::read_internal_page(int pag
 template <class T>
 void btree<T>::write_leaf_page(struct leaf_node *l_read, T val)
 {
-	unsigned char *buffer_page;
+	char *buffer_page;
 	T num;
 	RecordID rid;
 	//struct leaf_node *temp =NULL;
 	int level,num_nodes,page_no,parent_node,next,prev,page_priority;
-	buffer_page = new unsigned char[page_size];
 	BufferManager *bu = BufferManager::getBufferManager();/*call chinmay's function */
+	buffer_page = new char[_pageSize];
+	
 
 	//page_num = l_read->page_no;
 	//temp = read_leaf_page(page_num);
@@ -1818,18 +1869,20 @@ void btree<T>::write_leaf_page(struct leaf_node *l_read, T val)
 		(*bu).writeDB(0,page_no,PagePriority(page_priority),buffer_page);
 		//return buffer_page; (Call chinmay's function)
 	}
+	delete(buffer_page);
 }
 
 template <>
 void btree<string>::write_leaf_page(struct leaf_node *l_read,string val)
 {
-	unsigned char *buffer_page;
+	char *buffer_page;
 	string num;
 	RecordID rid;
 	//struct leaf_node *temp =NULL;
 	int level,num_nodes,page_no,parent_node,next,prev,page_priority;
-	buffer_page = new unsigned char[page_size];
-	BufferManager *bu = BufferManager::getBufferManager();/*call chinmay's function */
+	BufferManager *bu = BufferManager::getBufferManager();
+	buffer_page = new char[_pageSize];
+	/*call chinmay's function */
 
 	//page_num = l_read->page_no;
 	//temp = read_leaf_page(page_num);
@@ -1892,19 +1945,21 @@ void btree<string>::write_leaf_page(struct leaf_node *l_read,string val)
 		(*bu).writeDB(0,page_no,PagePriority(page_priority),buffer_page);
 		//return buffer_page; (Call chinmay's function)
 	}
+	delete(buffer_page);
 }
 
 
 template <class T>
 void btree<T>::write_internal_page(struct internal_node *i_read,T val)
 {
-	unsigned char *buffer_page;
+	char *buffer_page;
 	T num;
 	int ptrs;
 	int i,j;
 	int next = -1, prev = -1;
 	int level,num_nodes,page_no,parent_node,page_priority;
-	buffer_page = new unsigned char[page_size];
+	BufferManager *bu = BufferManager::getBufferManager();
+	buffer_page = new char[_pageSize];
 	if(i_read!=NULL && i_read->page_no!=0)
 	{
 		level = i_read->level;
@@ -1912,7 +1967,7 @@ void btree<T>::write_internal_page(struct internal_node *i_read,T val)
 		page_no = i_read->page_no;
 		parent_node = i_read->parent_node;
 		page_priority = i_read->page_priority;
-		BufferManager *bu = BufferManager::getBufferManager();
+		
 		//cout<<endl<<"Internal Page number to write:"<<page_no<<endl;
 		memcpy(&(buffer_page[LEVEL]),&(level),sizeof(int));
 		memcpy(&(buffer_page[NUM_NODES]),&(num_nodes),sizeof(int));
@@ -1964,18 +2019,20 @@ void btree<T>::write_internal_page(struct internal_node *i_read,T val)
 		(*bu).writeDB(0,page_no,PagePriority(page_priority),buffer_page);
 		//return buffer_page; (Call chinmay's function)
 	}
+	delete(buffer_page);
 }
 
 template <>
 void btree<string>::write_internal_page(struct internal_node *i_read,string val)
 {
-	unsigned char *buffer_page;
+	char *buffer_page;
 	string num;
 	int ptrs;
 	int i,j;
 	int next = -1, prev = -1;
 	int level,num_nodes,page_no,parent_node,page_priority;
-	buffer_page = new unsigned char[page_size];
+	BufferManager *bu = BufferManager::getBufferManager();
+	buffer_page = new char[_pageSize];
 	if(i_read!=NULL && i_read->page_no!=0)
 	{
 		level = i_read->level;
@@ -1983,7 +2040,7 @@ void btree<string>::write_internal_page(struct internal_node *i_read,string val)
 		page_no = i_read->page_no;
 		parent_node = i_read->parent_node;
 		page_priority = i_read->page_priority;
-		BufferManager *bu = BufferManager::getBufferManager();
+		
 		//cout<<endl<<"Internal Page number to write:"<<page_no<<endl;
 		memcpy(&(buffer_page[LEVEL]),&(level),sizeof(int));
 		memcpy(&(buffer_page[NUM_NODES]),&(num_nodes),sizeof(int));
@@ -2035,6 +2092,7 @@ void btree<string>::write_internal_page(struct internal_node *i_read,string val)
 		(*bu).writeDB(0,page_no,PagePriority(page_priority),buffer_page);
 		//return buffer_page; (Call chinmay's function)
 	}
+	delete(buffer_page);
 }
 
 template <class T>
@@ -2046,26 +2104,27 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 	T keys[FANOUT],temp1;
 	int pointers[FANOUT+1];
 	internal_node *temp_int = NULL;
+	internal_node *child = NULL;
 	internal_node *temp_node = NULL;
 	leaf_node *temp_node_leaf = new leaf_node;
 	internal_node *tmp_node = NULL;
 //Root
 	page_num = int_temp->ptrs[0];
 	if(int_temp->level > 1)
-		temp_int = read_internal_page(page_num,2,value);
+		child = read_internal_page(page_num,2,value);
 	else
 	{
 		temp_node_leaf = read_leaf_page(page_num,value);
-		temp_int = (internal_node*)temp_node_leaf;
+		child = (internal_node*)temp_node_leaf;
 	}
 	page_num = root->page_no;
 	root = read_internal_page(page_num,3,value);
 	if(int_temp->page_no==root->page_no)
 	{
-		if(int_temp->num_nodes==0 && temp_int->level!=0)
+		if(int_temp->num_nodes==0 && child->level!=0)
 		{	
-			temp_int->page_priority = 3;
-			root=temp_int;
+			child->page_priority = 3;
+			root=child;
 			write_internal_page(root,value);
 		}
 	}
@@ -2091,18 +2150,7 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				temp_int = (internal_node*)temp_node_leaf;
 			}
 		}
-		else if(pos!=0)
-		{
-			page_num = parent->ptrs[pos-1];
-			if(int_temp->level >= 1)
-				temp_int = read_internal_page(page_num,2,value);
-			else
-			{
-				temp_node_leaf = read_leaf_page(page_num,value);
-				temp_int = (internal_node*)temp_node_leaf;
-			}
-		}
-		else if(pos!=parent->num_nodes)
+		else if(pos!=0 && pos<parent->num_nodes)
 		{
 			page_num = parent->ptrs[pos+1];
 			if(int_temp->level >= 1)
@@ -2113,28 +2161,86 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				temp_int = (internal_node*)temp_node_leaf;
 			}
 		}
+		else if(pos==parent->num_nodes)
+		{
+			page_num = parent->ptrs[pos-1];
+			if(int_temp->level >= 1)
+				temp_int = read_internal_page(page_num,2,value);
+			else
+			{
+				temp_node_leaf = read_leaf_page(page_num,value);
+				temp_int = (internal_node*)temp_node_leaf;
+			}
+		}
 
-		if(pos==0 && (temp_int->num_nodes + int_temp->num_nodes)>=FANOUT)//right
+		if(pos==0 && (temp_int->num_nodes + int_temp->num_nodes)>=FANOUT)//right node redistribution
 		{
 			if(FANOUT%2==0) 
 				val=FANOUT/2;
 			else
-				 val=(FANOUT/2);	
+				 val=(FANOUT/2)+1;	
 			j=0;
 			len=temp_int->num_nodes;
+			(int_temp->key).push_back(parent->key[0]);
+			i = int_temp->num_nodes;
+			int_temp->ptrs[i+1]=temp_int->ptrs[j];
+			int_temp->num_nodes++;
+			page_num = temp_int->ptrs[j];
+			if(int_temp->level > 1)
+				temp_node = read_internal_page(page_num,2,value);
+			else
+			{
+				temp_node_leaf = read_leaf_page(page_num,value);
+				temp_node = (internal_node*)temp_node_leaf;
+			}
+			if(temp_node->level==0)
+			{
+				temp_node_leaf->parent_node = int_temp->page_no;
+				temp_node = (internal_node*)temp_node_leaf;
+			}
+			else
+				temp_node->parent_node = int_temp->page_no;
+			
+			if(temp_node->level >=1)
+				write_internal_page(temp_node,value);
+			else
+				write_leaf_page((leaf_node*)temp_node,value);
+
+			j=0;
+
 			for(i=int_temp->num_nodes;i<val-1;i++)
 			{
 				(int_temp->key).push_back(temp_int->key[j]);
-				int_temp->ptrs[i+1]=temp_int->ptrs[j];
+				int_temp->ptrs[i+1]=temp_int->ptrs[j+1];
+				page_num = temp_int->ptrs[j+1];
+				if(int_temp->level > 1)
+					temp_node = read_internal_page(page_num,2,value);
+				else
+				{
+					temp_node_leaf = read_leaf_page(page_num,value);
+					temp_node = (internal_node*)temp_node_leaf;
+				}
+				if(temp_node->level==0)
+				{
+					temp_node_leaf->parent_node = int_temp->page_no;
+					temp_node = (internal_node*)temp_node_leaf;
+				}
+				else
+					temp_node->parent_node = int_temp->page_no;
+
+				if(temp_node->level >=1)
+					write_internal_page(temp_node,value);
+				else
+					write_leaf_page((leaf_node*)temp_node,value);
+
 				j++;
 				temp_int->num_nodes--;
 				int_temp->num_nodes++;
 			}
-			(int_temp->key).push_back(parent->key[0]);
-			int_temp->ptrs[i+1]=temp_int->ptrs[j];
-			parent->key[0] = temp_int->key[0];
+			
 			j++;
-	
+			parent->key[0] = temp_int->key[j-1];
+			//temp_int->num_nodes--;
 			i=0;		
 			temp_int->num_nodes=0;
 			for(;j<len;j++)
@@ -2144,6 +2250,7 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				i++;
 				temp_int->num_nodes++;
 			}
+			
 			temp_int->ptrs[i]=temp_int->ptrs[j];
 			
 			write_internal_page(parent,value);
@@ -2158,7 +2265,7 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				write_leaf_page((leaf_node*)int_temp,value);
 			
 		}	
-		else if(pos!=0 && (temp_int->num_nodes + int_temp->num_nodes)>=FANOUT)//left
+		else if(pos==parent->num_nodes && (temp_int->num_nodes + int_temp->num_nodes)>=FANOUT)//left
 		{
 			if(FANOUT%2==0)
 				val=FANOUT/2;
@@ -2183,14 +2290,55 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 			j=0;
 			for(;i<k;i++)
 			{
-				int_temp->key[j]=temp_int->key[i];
-				//(int_temp->key).push_back(temp_int->key[i]);
+				//int_temp->key[j]=temp_int->key[i];
+				(int_temp->key).push_back(temp_int->key[i]);
 				int_temp->ptrs[j]= temp_int->ptrs[i]; //added +1 
+				page_num = temp_int->ptrs[i];
+				if(int_temp->level > 1)
+					temp_node = read_internal_page(page_num,2,value);
+				else
+				{
+					temp_node_leaf = read_leaf_page(page_num,value);
+					temp_node = (internal_node*)temp_node_leaf;
+				}
+				if(temp_node->level==0)
+				{
+					temp_node_leaf->parent_node = int_temp->page_no;
+					temp_node = (internal_node*)temp_node_leaf;
+				}
+				else
+					temp_node->parent_node = int_temp->page_no;
+				
+				if(temp_node->level >=1)
+					write_internal_page(temp_node,value);
+				else
+					write_leaf_page((leaf_node*)temp_node,value);
 				j++;
 				temp_int->num_nodes--;
 				int_temp->num_nodes++;
 			}
 			int_temp->ptrs[j]= temp_int->ptrs[i];//check this and all similar
+			page_num = temp_int->ptrs[j];
+			if(int_temp->level > 1)
+				temp_node = read_internal_page(page_num,2,value);
+			else
+			{
+				temp_node_leaf = read_leaf_page(page_num,value);
+				temp_node = (internal_node*)temp_node_leaf;
+			}
+			if(temp_node->level==0)
+			{
+				temp_node_leaf->parent_node = int_temp->page_no;
+				temp_node = (internal_node*)temp_node_leaf;
+			}
+			else
+				temp_node->parent_node = int_temp->page_no;
+			
+			if(temp_node->level >=1)
+				write_internal_page(temp_node,value);
+			else
+				write_leaf_page((leaf_node*)temp_node,value);
+
 			int_temp->key[j] = temp1;
 			int_temp->num_nodes++;
 			j++;
@@ -2202,6 +2350,7 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				int_temp->num_nodes++;
 			}
 			int_temp->ptrs[j]=pointers[i];
+				
 
 			write_internal_page(parent,value);
 
@@ -2216,40 +2365,87 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				write_leaf_page((leaf_node*)int_temp,value);
 		
 		}	
-		else if(pos!=parent->num_nodes && (temp_int->num_nodes + int_temp->num_nodes)>=FANOUT)//right
+		else if(pos!=parent->num_nodes && pos!=0 && (temp_int->num_nodes + int_temp->num_nodes)>=FANOUT)//right
 		{
 			if(FANOUT%2==0) 
 				val=FANOUT/2;
 			else
 				val=(FANOUT/2)+1;	
 			j=0;
+
 			len=temp_int->num_nodes;
+			(int_temp->key).push_back(parent->key[pos]);
+			i = int_temp->num_nodes;
+			int_temp->ptrs[i+1]=temp_int->ptrs[j];
+			int_temp->num_nodes++;
+			page_num = temp_int->ptrs[j];
+			if(int_temp->level > 1)
+				temp_node = read_internal_page(page_num,2,value);
+			else
+			{
+				temp_node_leaf = read_leaf_page(page_num,value);
+				temp_node = (internal_node*)temp_node_leaf;
+			}
+			if(temp_node->level==0)
+			{
+				temp_node_leaf->parent_node = int_temp->page_no;
+				temp_node = (internal_node*)temp_node_leaf;
+			}
+			else
+				temp_node->parent_node = int_temp->page_no;
+			
+			if(temp_node->level >=1)
+				write_internal_page(temp_node,value);
+			else
+				write_leaf_page((leaf_node*)temp_node,value);
+
+			j=0;
+
 			for(i=int_temp->num_nodes;i<val-1;i++)
 			{
-				page_num = int_temp->ptrs[i];
-				temp_node = read_internal_page(page_num,2,value);
-				(int_temp->key).push_back(temp_node->key[(temp_node->num_nodes)-1]);
-				int_temp->ptrs[i+1]=temp_int->ptrs[j];
+				(int_temp->key).push_back(temp_int->key[j]);
+				int_temp->ptrs[i+1]=temp_int->ptrs[j+1];
+				page_num = temp_int->ptrs[j+1];
+				if(int_temp->level > 1)
+					temp_node = read_internal_page(page_num,2,value);
+				else
+				{
+					temp_node_leaf = read_leaf_page(page_num,value);
+					temp_node = (internal_node*)temp_node_leaf;
+				}
+				if(temp_node->level==0)
+				{
+					temp_node_leaf->parent_node = int_temp->page_no;
+					temp_node = (internal_node*)temp_node_leaf;
+				}
+				else
+					temp_node->parent_node = int_temp->page_no;
+
+				if(temp_node->level >=1)
+					write_internal_page(temp_node,value);
+				else
+					write_leaf_page((leaf_node*)temp_node,value);
+
+				j++;
 				temp_int->num_nodes--;
 				int_temp->num_nodes++;
-				j++;
-			}	
+			}
+			
+			j++;
 			parent->key[pos] = temp_int->key[j-1];
-			//j++;
-	
 			i=0;		
 			temp_int->num_nodes=0;
 			for(;j<len;j++)
 			{
 				temp_int->key[i] = temp_int->key[j];
-				temp_int->ptrs[i]= temp_int->ptrs[j];
+				temp_int->ptrs[i]=temp_int->ptrs[j];
 				i++;
 				temp_int->num_nodes++;
 			}
-			temp_int->ptrs[i] = temp_int->ptrs[j];
+			//parent->key[pos] = temp_int->key[0];
+			temp_int->ptrs[i]=temp_int->ptrs[j];
 			
 			write_internal_page(parent,value);
-			
 			if(int_temp->level >= 1)
 				write_internal_page(temp_int,value);
 			else
@@ -2259,7 +2455,6 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				write_internal_page(int_temp,value);
 			else
 				write_leaf_page((leaf_node*)int_temp,value);
-			
 		}
 //Merging nodes	
 		else
@@ -2315,7 +2510,7 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 				}
 				if(tmp_node->level==0)
 				{
-					temp_node_leaf->parent_node = int_temp->page_no;
+					tmp_node->parent_node = int_temp->page_no;
 					write_leaf_page(temp_node_leaf,value);
 				}
 				else 
@@ -2336,7 +2531,17 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 					write_internal_page(temp_int,value);
 				else
 					write_leaf_page((leaf_node*)temp_int,value);
-			
+				
+	
+				/*if(int_temp->level >= 1)
+					write_internal_page(temp_node);
+				else
+					write_leaf_page((leaf_node*)temp_node); 
+				
+				if(tmp_node->level >= 1)
+					write_internal_page(tmp_node);
+				else
+					write_leaf_page((leaf_node*)tmp_node); */
 			}		
 			else//merge with the left node
 			{
@@ -2366,11 +2571,15 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 					}
 					if(temp_node->level==0)
 					{
-						temp_node_leaf->parent_node = parent->ptrs[pos-1];
+						temp_node_leaf->parent_node = temp_int->page_no;
+						write_leaf_page(temp_node_leaf,value);
 						temp_node = (internal_node*)temp_node_leaf;
 					}
 					else
-						temp_node->parent_node = parent->ptrs[pos-1];
+					{
+						temp_node->parent_node = temp_int->page_no;
+						write_internal_page(temp_node,value);
+					}
 					j++;
 					temp_node->num_nodes++;
 				}
@@ -2486,7 +2695,7 @@ void btree<T>::combine_leaf(leaf_node* l_temp,internal_node* parent,T num)
 		if(l_temp->num_nodes==0) 
 		{
 			root->num_nodes=0;
-			write_internal_page(root->page_no,3,val);
+			write_internal_page(root,val);
 		}
 	}
 	else if(l_temp->prev==-1 && (ln_next->num_nodes + l_temp->num_nodes)>=FANOUT)//node 1 in level 0
@@ -2787,7 +2996,7 @@ IndexQuery* btree<T>::deleting(T num,RecordID rid,IndexQuery* query)
 			query->errorNum = 501;
 		}
 	}
-	if(query->rootPageId!=root->page_no)
+	if(query->rootPageID!=root->page_no)
 	{
 		query->newRootPageID = root->page_no;
 		query->rootPageIDUpdated = true;
@@ -2840,28 +3049,39 @@ IndexQuery* btree<T>::bulk_delete(T n1,T n2,IndexQuery *query)
 			i = l_temp->key[*pos];
 		}
 	}
-	while(i<=n2)
+	while(i<=n2 && l_temp!=NULL)
 	{
 		//l_temp = searching_key(i,flag,pos);
-		query = deleting(i,tr,query);
 		l_temp = searching_neighbor(i,tr,flag,pos);
-		//page_num = l_temp->page_no;
-		//l_temp = read_leaf_page(page_num,val);
+		query = deleting(i,tr,query);
+		
 		
 		if(*pos <= (l_temp->num_nodes-1))
 		{
 			//*pos = *pos +1;
 			i = l_temp->key[*pos];
+			tr.dataPageID = (l_temp->rid[*pos]).dataPageID;
+			tr.slotID = (l_temp->rid[*pos]).slotID; 
 		}
 		else if(l_temp->next!=-1)
 		{
 			page_num = l_temp->next;
-			l_temp = read_leaf_page(page_num,val);
-			*pos = 0;
-			i = l_temp->key[*pos];
+			if(page_num!=0)
+			{
+				l_temp = read_leaf_page(page_num,val);
+				*pos = 0;
+				i = l_temp->key[*pos];
+				tr.dataPageID = (l_temp->rid[*pos]).dataPageID;
+				tr.slotID = (l_temp->rid[*pos]).slotID;
+			}
+			else
+				l_temp = NULL; 
 		}
-		tr.dataPageID = (l_temp->rid[*pos]).dataPageID;
-		tr.slotID = (l_temp->rid[*pos]).slotID; 
+		else
+		{
+			break;
+		}
+		
 		//count++;
 	}
 	return query;		
@@ -2955,7 +3175,7 @@ void btree<T>::split_internal(internal_node* child,internal_node* parent,IndexQu
 	} 
 	new_num = (FANOUT+1)/2;
 	child->num_nodes = old_num -1;
-	int_temp->page_no = page_no++;
+	int_temp->page_no = getFreePage(query->curDB);
 	int_temp->level = child->level;
 	int_temp->num_nodes = new_num;	
 	int_temp->page_priority = 2;	
@@ -3037,7 +3257,7 @@ void btree<T>::insert_internal(internal_node* node,T num,internal_node* child1,i
 	T temp1,temp2;
 	T val;
 	int temp1_child,temp2_child,page_num;
-
+	
 	if(node == NULL)
 	{
 		node = new internal_node;
@@ -3045,7 +3265,7 @@ void btree<T>::insert_internal(internal_node* node,T num,internal_node* child1,i
 		//node1->ptrs.resize(FANOUT+2);	
 		node->level=child1->level + 1;
 		node->num_nodes=1;
-		node->page_no = DB::getFreePage();
+		node->page_no = getFreePage(query->curDB);
 		node->page_priority = 3;
 		(node->ptrs).push_back(child1->page_no);	
 		(node->ptrs).push_back(child2->page_no);
@@ -3182,7 +3402,7 @@ void btree<T>::split_leaf(leaf_node* child,internal_node* parent,RecordID rid,In
 	new_num = (FANOUT+1)/2;
 	child->num_nodes = old_num;
 	l_temp->level = 0;
-	l_temp->page_no = DB::getFreePage(); //getFreePage
+	l_temp->page_no = getFreePage(query->curDB); //getFreePage
 	l_temp->page_priority = 1;
 	l_temp->num_nodes = new_num;
 	l_temp->next = child->next;
@@ -3300,7 +3520,7 @@ IndexQuery* btree<T>::insert_key(T num,RecordID rid,IndexQuery *query)
 		if(flag==1)
 		{
 			query->errorFlag = true;
-			return;
+			return query;
 		}
 		
 		page_num = root->ptrs[0];
@@ -3320,7 +3540,7 @@ IndexQuery* btree<T>::insert_key(T num,RecordID rid,IndexQuery *query)
 		if(flag==1)
 		{
 			query->errorFlag = true;
-			return;
+			return query;
 		}
 		else
 		{
@@ -3359,9 +3579,10 @@ IndexQuery* btree<T>::bulk_insert(T n1,T n2,T step_size,IndexQuery* query)
 {
 	T i = n1;
 	RecordID tr;
+	int count_bulk = 1;
 	while(i<=n2)
 	{
-		tr.dataPageID = 999;
+		tr.dataPageID = getFreePage(query->curDB);
 		tr.slotID = count_bulk; 
 		query = insert_key(i,tr,query);
 		i = i+step_size;
@@ -3370,53 +3591,63 @@ IndexQuery* btree<T>::bulk_insert(T n1,T n2,T step_size,IndexQuery* query)
 	return query;
 }
 
-IndexQuery* indexInterface(IndexQuery *query)
+void indexInterface(IndexQuery *query)
 {
 	string data;
 	IndexQuery *result;
-	data = query->dataType;
-	if(data.compare("string")==0 || data.compare("std::string")==0)
+	data = (string)query->dataType;
+	if(data.compare("string")==0 || data.compare("std::string")==0 || data.compare("varchar")==0 || data.compare("char")==0)
 	{
-		btree<string> bt = btree<string>();
-		key_size = SIZEOFSTR + sizeof(int) + sizeof(int);
+		btree<string> bt = btree<string>(query);
 		result = bt.start(query);		
 	}
 	else if(data.compare("int")==0 || data.compare("integer")==0)
 	{
-		btree<int> bt1 = btree<int>();
-		key_size = sizeof(int) + sizeof(int) + sizeof(int);
+		btree<int> bt1 = btree<int>(query);
 		result = bt1.start(query);		
 	}
 	else if(data.compare("float")==0)
 	{
-		btree<float> bt2 = btree<float>();
-		key_size = sizeof(float) + sizeof(int) + sizeof(int);
+		btree<float> bt2 = btree<float>(query);
 		result = bt2.start(query);		
-	}
-	else if(data.compare("char")==0 || data.compare("character")==0)
-	{
-		btree<char> bt3 = btree<char>();
-		key_size = sizeof(char) + sizeof(int) + sizeof(int);
-		result = bt3.start(query);		
 	}
 	else if(data.compare("double")==0)
 	{
-		btree<double> bt4 = btree<double>();
-		key_size = sizeof(double) + sizeof(int) + sizeof(int);
+		btree<double> bt4 = btree<double>(query);
 		result = bt4.start(query);		
 	}
 	else if(data.compare("long")==0)
 	{
-		btree<long> bt5 = btree<long>();
-		key_size = sizeof(long) + sizeof(int) + sizeof(int);
+		btree<long> bt5 = btree<long>(query);
 		result = bt5.start(query);		
 	}
 	else if(data.compare("short")==0)
 	{
-		btree<short> bt6 = btree<short>();
-		key_size = sizeof(short) + sizeof(int) + sizeof(int);
+		btree<short> bt6 = btree<short>(query);
 		result = bt6.start(query);		
 	}
-	return result;
+	//return result;
 	
+}
+
+
+int main()
+{
+	cout<<"\n Instantiated before";
+	cout<<"\n Size: "<<sizeof(IndexQuery);
+	IndexQuery *query = (IndexQuery*)malloc(sizeof(IndexQuery));	
+	cout<<"\n Instantiated";
+	query->queryType = 1;
+	strcpy(query->dataType,"varchar");
+	query->charLength = 20;
+	query->rootPageID = -1;
+	query->errorFlag = false;
+	IndexQuery *result = NULL;  //(IndexQuery*)malloc(sizeof(IndexQuery));
+	result = indexInterface(query);
+	if(result!=NULL)
+	{
+		cout<<endl<<"Query->queryType:"<<result->queryType<<endl;
+		cout<<endl<<"Query->dataType:"<<result->dataType<<endl;
+		cout<<endl<<"Query->root:"<<result->rootPageID<<endl;
+	}
 }
