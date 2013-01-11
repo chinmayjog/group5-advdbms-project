@@ -26,9 +26,19 @@ void executeQuery(DB *curDB, string s){
 			}
 			else if(!strcmp(q->type,"SHOWDB")){
 				result = curDB->showDB(q);
+				if(result > 0){
+					for(int i = 0; i < q->countResults; i++){
+						cout<<q->results[i]<<endl;
+					}
+				}
 			}
 			else if(!strcmp(q->type,"SHOWTBL")){
-				//result = curDB->showTables(q);
+				result = curDB->showTables(q);
+				if(result > 0){
+					for(int i = 0; i < q->countResults; i++){
+						cout<<q->results[i]<<endl;
+					}
+				}
 			}
 			else if(!strcmp(q->type,"CREATETBL")){
 				result = curDB->createTable(q);
@@ -40,7 +50,7 @@ void executeQuery(DB *curDB, string s){
 				//result = curDB->dropIndex(q);
 			}
 			else if(!strcmp(q->type,"INSERT")){
-				//result = curDB->insertEntry(q);
+				result = curDB->insertEntry(q);
 			}
 			else if(!strcmp(q->type,"DELETE")){
 				result = curDB->deleteEntry(q);

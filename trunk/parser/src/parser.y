@@ -275,8 +275,10 @@ int yyerror(const char *p) { cout<<p<< endl; q->error = 1;}
 				;
 				
 	STA2:		INSERT INTO ID LPAREN columnorder RPAREN VALUES LPAREN values RPAREN {strcpy(q->type, "INSERT1"); strcpy(q->table ,$3);}
-				| INSERT INTO ID VALUES LPAREN values RPAREN {strcpy(q->type, "INSERT2"); strcpy(q->table ,$3);}
-				;
+				| INSERT INTO ID VALUES LPAREN values RPAREN {strcpy(q->type, "INSERT"); strcpy(q->table ,$3); 
+						for(int i = 0; i < 20; i++)
+							strcpy(q->ins[i].colname, "########");
+				};
 	
 	columnorder:ID',' columnorder {strcpy(q->ins[count++].colname, $1);}
 				| ID {strcpy(q->ins[count++].colname, $1);}
