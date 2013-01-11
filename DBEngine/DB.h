@@ -127,7 +127,7 @@ class DB
 		int createNewSysIndexEntry(SysIndexEntry newSysIndexEntry);
 		int deleteSysIndexEntry(string indexName,string tableName);
 		int createNewDirectoryPageEntry(int directoryPageID,int newDataPageID,int tfs,bool *noOfPagesChanged);
-		int insertDataBaseEntry(int directoryPageID,char *dataBuffer,bool *noOfPagesChanged,int *dataPageID,int *slotID);
+		int insertDataBaseEntry(int directoryPageID,int dataSize,char *dataBuffer,bool *noOfPagesChanged,int *dataPageID,int *slotID);
 
 		int queryEvaluate(char * data,query q,string * columnNames,string * dataTypes,int * ordinalPositions,short * scales,int * columnLengths,bool *result);
 		int evaluateLeafNode(char * data,condition * node,string * columnNames,string * dataTypes,int * ordinalPositions,short * scales,int * columnLengths,bool *result);
@@ -146,6 +146,11 @@ class DB
 		int deleteDirectoryPage(int pageID);
 		int deleteDataPage(int pageID);
 
+		// UsingIndex search,delete,update
+		bool indexQuerySearch();
+		bool indexQueryDelete();
+		bool indexQueryUpdate();
+
 		// Log entries
 		bool writeLog(string message)
 		{
@@ -162,5 +167,5 @@ class DB
 		// This is the function which will call the main database queries. Parser will call this method. Check pageSize before execution of the query here itself And throw error if the two are different
 		friend int mainDB(DB * curDB,query q);
 };
-
+IndexQuery* indexInterface(DB * curDB,IndexQuery *query);
 #endif
