@@ -66,11 +66,11 @@ class BufferManager {
 		 void setPageSize(int pageSizeInBytes);
 		 int  initializeCache(int numPages);
 		 int  getPageSize();
-		 int  createDB(string filepath, string filename, int sizeinBytes);
+		 int  createDB(string filepath, string filename, long sizeinBytes);
 		 int  openDB(string filepath, string filename);
 		 bool readDB(int fdID, int pgNo, PagePriority p, char* dest);
 		 bool writeDB(int fdID, int pgNo, PagePriority p, char* src);
-		 int  expandDB(int mdtID, int size);
+		 int  expandDB(int mdtID, long size);
 		 int  closeDB(int fdID);
 		 void closeAll();
 		 int  dropDB(string filepath, string filename);
