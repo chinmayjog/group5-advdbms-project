@@ -1,9 +1,10 @@
+#ifndef _INDEXQUERY_H
+#define _INDEXQUERY_H
 // For Drop Index
 // The Index pages has to be returned to the free list
 // Send the root page id
 // Noopur has to return all the pages from the root page to the free page list
-
-#include"DB.h"
+//enum indexOperators {EQL, NEQL, LET, LEQ, GRT, GEQ, LIKE, IN};
 
 #define INDEXCREATE 1
 #define INDEXINSERT 2
@@ -23,17 +24,19 @@ typedef struct recordID
 typedef struct indexQuery
 {
 	short queryType;
-	int rootPageID;
+	short operatorType;
+
+	int *rootPageID;
 	char dataType[8];
 	int charLength;
 
-	int fanOut;
-	bool fanOutChanged;
-	int newFanOut;
+	int *fanOut;
+	bool *fanOutChanged;
+	int *newFanOut;
 
-	DB * curDB;
+	//DB * curDB;
 
-	bool resultFlag;
+	bool *resultFlag;
 
 	bool isPrimary; // Flag is set if the column is primary
 
@@ -41,13 +44,14 @@ typedef struct indexQuery
 	RecordID keyRecord;
 
 	int limitKeys;
-	int returnedKeys;
-	int lastKeyID;
-	int totalResults;
+	int *returnedKeys;
+	int *lastKeyID;
+	RecordID *lastKeyRecordID;
+	int *totalResults;
 	RecordID **keyRecords;
 	
-	bool rootPageIDUpdated;
-	int newRootPageID;
+	bool *rootPageIDUpdated;
+	int *newRootPageID;
 
 	char *oldKey;
 	int oldKeyLength;
@@ -56,6 +60,8 @@ typedef struct indexQuery
 	RecordID oldKeyRecord;
 	RecordID newKeyRecord;
 
-	bool errorFlag;
-	int errorNum;
+	bool *errorFlag;
+	int *errorNum;
 }IndexQuery;
+
+#endif
