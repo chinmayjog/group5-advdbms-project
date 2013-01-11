@@ -116,3 +116,6 @@
 
 #define INDEXCREATEMULTICOLUMNINDEXNOTSUPPORTED -2039
 //-2039 = "Create Index: Multi-column Indexing is not supported"
+
+#define INDEXINSERTERROR -2040
+//-2040 = "Insert Entry: Index insert failed."

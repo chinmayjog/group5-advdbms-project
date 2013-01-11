@@ -629,8 +629,8 @@ int DB::evaluateLeafNode(char * data,condition * node,string * columnNames,strin
 int DB::queryEvaluate(char * data,query q,string * columnNames,string * dataTypes,int * ordinalPositions,short * scales,int * columnLengths,bool *result)
 {
 	condition * conditionTree = q->root;
-	int noOfNodes = countNodes(conditionTree);
-	int noOfLevels = countLevels(conditionTree);
+	//int noOfNodes = countNodes(conditionTree);
+	//int noOfLevels = countLevels(conditionTree);
 	char *dataType;
 
 	stack<condition *> st;
@@ -1582,7 +1582,7 @@ int DB::createNewDirectoryPageEntry(int directoryPageID,int newDataPageID,int tf
 	return resultID;
 }
 
-int DB::insertDataBaseEntry(int directoryPageID,char *dataBuffer,bool *noOfPagesChanged,int *InsertedDataPageID,int *InsertedSlotID)
+int DB::insertDataBaseEntry(int directoryPageID,int dataSize,char *dataBuffer,bool *noOfPagesChanged,int *InsertedDataPageID,int *InsertedSlotID)
 {
 	int nextPTR = directoryPageID;
 	int curPTR = -1;
@@ -1590,7 +1590,7 @@ int DB::insertDataBaseEntry(int directoryPageID,char *dataBuffer,bool *noOfPages
 	string debugMessage;
 	bool retWriteLog;
 
-	int dataSize = strlen(dataBuffer);
+	//int dataSize = strlen(dataBuffer);
 
 	BufferManager *bu = BufferManager::getBufferManager();
 
@@ -1694,7 +1694,7 @@ int DB::insertDataBaseEntry(int directoryPageID,char *dataBuffer,bool *noOfPages
 					}
 					else
 					{
-						*InsertedDataPageID = newDataPage1->getPageID();
+						*InsertedDataPageID = dirPageEntry->getPageID();
 						if(debugFlag == true)
 						{
 							debugMessage = "Data was inserted to the data page "+dirPageEntry->getPageID();
@@ -1761,6 +1761,7 @@ int DB::insertDataBaseEntry(int directoryPageID,char *dataBuffer,bool *noOfPages
 			}
 			DataPage * newDataPage1 = new DataPage(newDataPageBuffer,_pageSize);
 			int inserted1 = newDataPage1->insertData(newDataPageBuffer,dataBuffer,dataSize,InsertedSlotID);
+			*InsertedDataPageID = newDataPageID;
 			if(debugFlag == true)
 			{
 				debugMessage = "Data was inserted in "+newDataPageID;
@@ -3290,14 +3291,19 @@ int DB::createIndex(query q)
 
 		IndexQuery * indexCreate = (IndexQuery *) malloc (sizeof(IndexQuery)*1);
 		indexCreate->queryType = 1;
+		indexCreate->rootPageID = (int *) malloc (sizeof(int));
+		indexCreate->fanOut = (int *) malloc (sizeof(int));
+		indexCreate->fanOutChanged = (bool *) malloc (sizeof(bool));
+		indexCreate->newFanOut = (int *) malloc (sizeof(int));
 		*(indexCreate->rootPageID) = -1;
 		indexCreate->charLength = columnLength;
 		for(int c1 = 1;c1<8;c1++)
 			indexCreate->dataType[c1] = columnDataType[c1];
 
 		// Call the index function here
+		// indexInterface(this,indexCreate);
 
-		newSysIndexEntry.setFanOutNo(*(indexCreate->fanOut));
+		newSysIndexEntry.setFanOutNo(*(indexCreate->newFanOut));
 		newSysIndexEntry.setIndexPageID(*(indexCreate->rootPageID));
 
 		int sysIndexEntryCreateResult = createNewSysIndexEntry(newSysIndexEntry);
@@ -3891,7 +3897,134 @@ int DB::insertEntry(query q)
 
 	int *InsertedDataPageID = new int [1],*InsertedSlotID = new int [1];
 
-	int resultInsert = insertDataBaseEntry(dirPageEntry,insertData,noOfPagesChanged,InsertedDataPageID,InsertedSlotID);
+	int resultInsert = insertDataBaseEntry(dirPageEntry,insertPos,insertData,noOfPagesChanged,InsertedDataPageID,InsertedSlotID);
+
+	int nextSysIndexPTR = _sysIndexPTR;
+	int curIndexPTR = -1;
+
+	for(short curColCount = 0;curColCount<colCount;curColCount++)
+	{
+		nextSysIndexPTR = _sysIndexPTR;
+		while(nextSysIndexPTR != -1)
+		{
+			char * sysIndexBuff = new char [_pageSize];
+			retReadDB = (*bu).readDB(fdID,nextSysIndexPTR,(PagePriority)(priority),sysIndexBuff);
+			if(retReadDB == false)
+			{
+				// Unable to write the buffer
+				// Return error
+				delete newEntryBuff;
+				delete sysIndexBuff;
+				delete insertData;
+				delete insertDataFlags;
+				delete noOfPagesChanged;
+				delete [] insertedValues;
+				delete [] defaultStrings;
+				delete [] columnNames;
+				delete [] dataTypes;
+				delete ordinalPositions;
+				delete isNullables;
+				delete genAttributes;
+				delete columnLengths;
+				delete scales;
+				delete keyPositions;
+				return DATABASEREADDBERROR;
+			}
+			SysIndex * sysIndex = new SysIndex(sysIndexBuff,_pageSize);
+			int noOfEntries = sysIndex->getNoOfEntries();
+			nextSysIndexPTR = sysIndex->getNextSysIndexPage();
+			cout<<"No. of Entries: "<<noOfEntries<<endl;
+			if(noOfEntries > 0)
+			{
+				for(int nE = 0;nE<noOfEntries;nE++)
+				{
+					char * newSIBuffer = new char [SYSINDEXENTRYSIZE];
+					memcpy(newSIBuffer,&sysIndexBuff[0+(nE*SYSINDEXENTRYSIZE)],SYSINDEXENTRYSIZE);
+					SysIndexEntry newSIEntry;
+					newSIEntry.getDataBuffer(newSIBuffer);
+					string indName = newSIEntry.getIndexName();
+					for(short cCount = 0;cCount<colCount;cCount++)
+					{
+						if(indName == columnNames[cCount])
+						{
+							// Index exists....
+							// Update it
+							IndexQuery * indexInsert = (IndexQuery *) malloc (sizeof(IndexQuery)*1);
+							indexInsert->queryType = 2;
+							indexInsert->rootPageID = (int *) malloc (sizeof(int));
+							*(indexInsert->rootPageID) = newSIEntry.getIndexPageID();
+							indexInsert->resultFlag = (bool *) malloc (sizeof(bool));
+							indexInsert->fanOut = (int *) malloc (sizeof(int));
+							*(indexInsert->fanOut) = newSIEntry.getFanOutNo();
+							indexInsert->key = (char *) malloc(sizeof(columnLengths[cCount]));
+							RecordID keyRecord;
+							indexInsert->rootPageIDUpdated = (bool *) malloc (sizeof(bool));
+							indexInsert->newRootPageID = (int *) malloc (sizeof(int));
+							indexInsert->errorFlag = (bool *) malloc (sizeof(bool));
+							indexInsert->errorNum = (int *) malloc (sizeof(int));
+							keyRecord.dataPageID = *InsertedDataPageID;
+							keyRecord.slotID = *InsertedSlotID;
+							// Call the index function here
+							// indexInterface(this,indexInsert);
+							if(*(indexInsert->errorFlag) == true)
+							{
+								delete newSIBuffer;
+								delete sysIndex;
+								delete sysIndexBuff;
+								delete newEntryBuff;
+								delete sysIndexBuff;
+								delete insertData;
+								delete insertDataFlags;
+								delete noOfPagesChanged;
+								delete [] insertedValues;
+								delete [] defaultStrings;
+								delete [] columnNames;
+								delete [] dataTypes;
+								delete ordinalPositions;
+								delete isNullables;
+								delete genAttributes;
+								delete columnLengths;
+								delete scales;
+								delete keyPositions;
+								return INDEXINSERTERROR;
+							}
+							if(*(indexInsert->rootPageIDUpdated) == true)
+							{
+								newSIEntry.setIndexPageID(*(indexInsert->newRootPageID));
+								newSIEntry.fillBuffer(newSIBuffer);
+								memcpy(&sysIndexBuff[0+(nE*SYSINDEXENTRYSIZE)],newSIBuffer,SYSINDEXENTRYSIZE);
+								bool retWriteDB = (*bu).writeDB(fdID,nextSysIndexPTR,(PagePriority)(priority),sysIndexBuff);
+								if(retWriteDB == false)
+								{
+									// Unable to write the buffer
+									// Return error
+									delete newEntryBuff;
+									delete sysIndexBuff;
+									delete insertData;
+									delete insertDataFlags;
+									delete noOfPagesChanged;
+									delete [] insertedValues;
+									delete [] defaultStrings;
+									delete [] columnNames;
+									delete [] dataTypes;
+									delete ordinalPositions;
+									delete isNullables;
+									delete genAttributes;
+									delete columnLengths;
+									delete scales;
+									delete keyPositions;
+									return DATABASEREADDBERROR;
+								}
+							}
+						}
+					}
+					delete newSIBuffer;
+				}
+			}
+			delete sysIndex;
+			delete sysIndexBuff;
+		}
+	}
 
 	// Change the no. of rows and no. of pages for the SysTables entry.
 	nextSysTabPointer = _sysTablesPTR;
@@ -4010,6 +4143,11 @@ int DB::deleteEntry(query q)
 	// On delete entry, update the total free space for the data page entry in the Directory page. This is a must!!!!
 	// Update all the indices as well
 
+	bool indexUse = true;
+
+	if(q->andOrConditionFlag == true)
+		indexUse = false;
+
 	string debugMessage;
 	bool retWriteLog;
 
@@ -4123,6 +4261,7 @@ int DB::deleteEntry(query q)
 	{
 		// Get the SysColumns entry for the column at curColCount position
 		char * curSysColBuff = new char [_pageSize];
+		nextSysColumnsPointer = _sysColumnsPTR;
 		while(nextSysColumnsPointer != -1)
 		{
 			retReadDB = (*bu).readDB(fdID,nextSysColumnsPointer,(PagePriority)(priority),curSysColBuff);
@@ -4159,6 +4298,51 @@ int DB::deleteEntry(query q)
 			delete curSysColumns;
 		}
 		delete curSysColBuff;
+	}
+
+	// Try to use the index first
+	if(indexUse == true)
+	{
+		int nextSysIndexPTR = _sysIndexPTR;
+		
+		while(nextSysIndexPTR != -1)
+		{
+			char * sysIndexBuff = new char [_pageSize];
+			bool retReadDB = (*bu).readDB(fdID,nextSysIndexPTR,(PagePriority)(priority),sysIndexBuff);
+			if(retReadDB == false)
+			{
+				delete [] dataTypes;
+				delete [] columnNames;
+				delete ordinalPositions;
+				delete scales;
+				delete columnLengths;
+				delete sysIndexBuff;
+				return DATABASEREADDBERROR;
+			}
+			SysIndex * curSI = new SysIndex(sysIndexBuff,_pageSize);
+			int noOE = curSI->getNoOfEntries();
+			if(noOE > 0)
+			{
+				for(int n1 = 0;n1<noOE;n1++)
+				{
+					char * curEntry = new char [SYSINDEXENTRYSIZE];
+					SysIndexEntry cE;
+					cE.getDataBuffer(curEntry);
+					for(int cCount = 0;cCount<colCount;cCount++)
+					{
+						if(cE.getIndexName() == columnNames[cCount])
+						{
+							// You can use index
+							IndexQuery * indexDelete = (IndexQuery *) malloc(sizeof(IndexQuery));
+							
+						}
+					}
+					delete curEntry;
+				}
+			}
+			delete curSI;
+			delete sysIndexBuff;
+		}
 	}
 
 	int nextPTR = dirPageEntry;
@@ -4250,6 +4434,13 @@ int DB::deleteEntry(query q)
 					{
 						char * dataBuffer = new char [slotSize];
 						memcpy(dataBuffer,&dataPageBuffer[slotPointer],slotSize);
+
+						cout<<"\n Printing data..."<<endl;
+
+						for(int k = 0;k<slotSize;k++)
+							dataBuffer[k];
+
+						exit(0);
 
 						bool * deleted = new bool [1];
 
@@ -4383,6 +4574,11 @@ int DB::updateEntry(query q)
 	// Else, the field is fixed length, so, just call the modify data page data directly...
 	// Delete only after the entry is inserted. Else, do not delete it !!!!
 
+	bool indexUse = true;
+
+	if(q->andOrConditionFlag == true)
+		indexUse = false;
+
 	string debugMessage;
 	bool retWriteLog;
 
@@ -4493,6 +4689,7 @@ int DB::updateEntry(query q)
 	{
 		// Get the SysColumns entry for the column at curColCount position
 		char * curSysColBuff = new char [_pageSize];
+		nextSysColumnsPointer = _sysColumnsPTR;
 		while(nextSysColumnsPointer != -1)
 		{
 			retReadDB = (*bu).readDB(fdID,nextSysColumnsPointer,(PagePriority)(priority),curSysColBuff);
@@ -4830,7 +5027,7 @@ int DB::updateEntry(query q)
 								for(short c5 = 0;c5<updateString.length();c5++)
 									newInsertData[c5] = updateString[c5];
 								bool * noOfPagesChanged;
-								int resInsert = insertDataBaseEntry(dirPageEntry,newInsertData,noOfPagesChanged,newSlotID,newDataPageID);
+								int resInsert = insertDataBaseEntry(dirPageEntry,updatePos,newInsertData,noOfPagesChanged,newSlotID,newDataPageID);
 								if(*noOfPagesChanged == true)
 								{
 									memcpy(newEntryBuff,&sysTabBuffer[0+((entryPosition-1)*SYSTABLEENTRYSIZE)],SYSTABLEENTRYSIZE);
@@ -4988,6 +5185,11 @@ int DB::selectEntry(query q)
 	// If $ or #'s are present replace with '\0'
 	// Give column delimiters for the entries
 
+	bool indexUse = true;
+
+	if(q->andOrConditionFlag == true)
+		indexUse = false;
+
 	string debugMessage;
 	bool retWriteLog;
 
@@ -5099,6 +5301,7 @@ int DB::selectEntry(query q)
 	{
 		// Get the SysColumns entry for the column at curColCount position
 		char * curSysColBuff = new char [_pageSize];
+		nextSysColumnsPointer = _sysColumnsPTR;
 		while(nextSysColumnsPointer != -1)
 		{
 			retReadDB = (*bu).readDB(fdID,nextSysColumnsPointer,(PagePriority)(priority),curSysColBuff);

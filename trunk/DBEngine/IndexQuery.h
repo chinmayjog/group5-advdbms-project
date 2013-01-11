@@ -48,7 +48,7 @@ typedef struct indexQuery
 	int *lastKeyID;
 	RecordID *lastKeyRecordID;
 	int *totalResults;
-	RecordID **keyRecords;
+	RecordID *keyRecords;
 	
 	bool *rootPageIDUpdated;
 	int *newRootPageID;
@@ -63,5 +63,4 @@ typedef struct indexQuery
 	bool *errorFlag;
 	int *errorNum;
 }IndexQuery;
-
 #endif

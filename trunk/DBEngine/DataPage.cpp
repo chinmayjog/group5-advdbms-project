@@ -144,7 +144,7 @@ int DataPage::insertData(char *dataPageBuffer,char *insertData,int dataSize,int 
 	// Check if the no. of slots is 0.....
 	if(_slotCounter == 0)
 	{
-		cout<<"\n This page is empty.....";
+		//cout<<"\n This page is empty.....";
 		_slotCounter = _slotCounter + 1;
 		*InsertedSlotID = _slotCounter;
 		memcpy(&dataPageBuffer[_cfsPointer],insertData,dataSize);
@@ -229,7 +229,7 @@ int DataPage::insertData(char *dataPageBuffer,char *insertData,int dataSize)
 	// Check if the no. of slots is 0.....
 	if(_slotCounter == 0)
 	{
-		cout<<"\n This page is empty.....";
+		//cout<<"\n This page is empty.....";
 		_slotCounter = _slotCounter + 1;
 
 		memcpy(&dataPageBuffer[_cfsPointer],insertData,dataSize);
