@@ -220,6 +220,7 @@ void BufferManager::printHex(int buffId, int size){
 			}
 		}
 		cout<<setbase(10);
+		cout<<setfill(' ');
 		cout<<endl;
 	}
 	
