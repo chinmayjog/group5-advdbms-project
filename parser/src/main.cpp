@@ -60,13 +60,25 @@ int main( int argc, char *argv[] ) {
 						//result = curDB->insertEntry(q);
 					}
 					else if(!strcmp(q->type,"DELETE")){
-						//result = curDB->deleteEntry(q);
+						result = curDB->deleteEntry(q);
 					}
 					else if(!strcmp(q->type,"UPDATE")){
 						//result = curDB->updateEntry(q);
 					}
 					else if(!strcmp(q->type,"SELECT")){
-						//result = curDB->selectEntry(q);
+						/*result = curDB->selectEntry(q);
+						if(result > 0){
+							for(int i=0; i<q->totalResultRows; i++){
+								int len = strlen(q->(result[i]));
+								int cntpipes = 0;
+								for(int j=0;j<len;j++){
+									int cntcols = 0;
+									if(result[i][j]=='|'){
+										cntpipes ++;
+									}
+								}
+							}
+						}*/
 					}
 					else if(!strncmp(q->type,"ALTER",5)){
 					//	result = curDB->selectEntry(q);

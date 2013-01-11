@@ -67,6 +67,7 @@ typedef struct {
     int dataPageNo;
     int dataSlotID;
     int totalResultRows;
+    bool firstTime;
     char **results;
 }querystruct;
 
