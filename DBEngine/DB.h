@@ -1,6 +1,9 @@
 // DB.h
 // Main DB header file
 
+#ifndef DB_H
+#define DB_H
+
 #include<iostream>
 #include<string>
 #include<fstream>
@@ -23,6 +26,7 @@
 #include"dataDirectoryPage.h"
 #include"DataPage.h"
 #include"DataTypes.h"
+#include"IndexQuery.h"
 
 using namespace std;
 
@@ -158,3 +162,5 @@ class DB
 		// This is the function which will call the main database queries. Parser will call this method. Check pageSize before execution of the query here itself And throw error if the two are different
 		friend int mainDB(DB * curDB,query q);
 };
+
+#endif

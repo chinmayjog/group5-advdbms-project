@@ -438,6 +438,10 @@ int DB::evaluateLeafNode(char * data,condition * node,string * columnNames,strin
 					}
 				}
 			}
+			if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)==0)
+				sumOffSet = sumOffSet+sizeof(short)+offset+sizeof(int);
+			else
+				sumOffSet = sumOffSet+sizeof(short)+offset;
 		}
 		delete [] columnValueToCheck;
 	}
@@ -515,7 +519,10 @@ int DB::evaluateLeafNode(char * data,condition * node,string * columnNames,strin
 					}
 				}
 			}
-			sumOffSet = sumOffSet+sizeof(short)+offset;
+			if(strncmp(dataTypes[i].c_str(),"VARCHAR$",8)==0)
+				sumOffSet = sumOffSet+sizeof(short)+offset+sizeof(int);
+			else
+				sumOffSet = sumOffSet+sizeof(short)+offset;
 		}
 	}
 	else
@@ -2487,7 +2494,7 @@ int DB::useDB(query q)
 				while(directoryPagePointer != -1)
 				{
 					char * dirPageBuff = new char [pageSize];
-					retReadDB = (*bu).readDB(fdID,nextPTR,(PagePriority)(dirPagePriority),dirPageBuff);
+					retReadDB = (*bu).readDB(fdID,directoryPagePointer,(PagePriority)(dirPagePriority),dirPageBuff);
 					if(retReadDB == false)
 					{
 						// Unable to write the buffer
@@ -2816,7 +2823,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 			short dataTypeID = retDataTypeID((q->columns[i]).type);
 			curDataLength = retDataTypeSize(dataTypeID,charLength);
 			if(strcmp((q->columns[i]).type,"VARCHAR$")==0)
-				curRecordLength = curDataLength + sizeof(short);
+				curRecordLength = curDataLength + sizeof(int);
 			else
 				curRecordLength = curDataLength;
 		}
@@ -2996,7 +3003,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 		else
 			newSysColumnEntry.setKeyPos(0);
 		newSysColumnEntry.setOrdinalPosition(i);
-		newSysColumnEntry.setLength(curRecordLength);
+		newSysColumnEntry.setLength(curDataLength);
 
 		int sysColumnEntryCreateResult = createNewSysColumnsEntry(newSysColumnEntry);
 
@@ -3024,7 +3031,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 			short dataTypeID = retDataTypeID((q->columns[colIndex]).type);
 			curDataLength = retDataTypeSize(dataTypeID,charLength);
 			if(strcmp((q->columns[colIndex]).type,"VARCHAR$")==0)
-				curRecordLength = curDataLength + sizeof(short);
+				curRecordLength = curDataLength + sizeof(int);
 			else
 				curRecordLength = curDataLength;
 		}
@@ -3050,7 +3057,7 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 		newSysIndexEntry.setEraseRule('N');
 		newSysIndexEntry.setCloseRule('N');
 		newSysIndexEntry.setRemarks("None");
-		newSysIndexEntry.setAvgKeyLength(curRecordLength);
+		newSysIndexEntry.setAvgKeyLength(curDataLength);
 
 		int sysIndexEntryCreateResult = createNewSysIndexEntry(newSysIndexEntry);
 
@@ -3085,6 +3092,187 @@ int DB::createIndex(query q)
 	// Else
 	// Call B+ tree code with data pages' data and its corresponding entry in the directory entry
 	// Pass Data and RID(PageNo,SlotID pair)
+
+	string dbName;
+	string indexName = q->index;
+	string tableName = q->table;
+	if(q->cntColumns > 1)
+	{
+		// Multi-column indexes as of now not supported
+		return INDEXCREATEMULTICOLUMNINDEXNOTSUPPORTED;
+	}
+	string columnName = q->columns[0].name;
+
+	// Get the data base name
+	BufferManager *bu = BufferManager::getBufferManager();
+	char * dbheaderBuff = new char [_pageSize];
+	short priority = 3;
+	bool retReadDB;
+	retReadDB = (*bu).readDB(fdID,_dbHeaderPTR,(PagePriority)(priority),dbheaderBuff);
+	if(retReadDB == false)
+	{
+		// Unable to write the buffer
+		// Return error
+		delete dbheaderBuff;
+		return DATABASEREADDBERROR;
+	}
+	DBHeader * dbHeader = new DBHeader(dbheaderBuff,_pageSize);
+	dbName = dbHeader->getDatabaseName();
+	delete dbHeader;
+	delete dbheaderBuff;
+
+	// Check whether index Name already exists
+	int nextIndexPTR = _sysIndexPTR,curIndexPTR = -1;
+	int entryPosition = -1;
+	while(nextIndexPTR != -1)
+	{
+		char * indexBuff = new char [_pageSize];
+		retReadDB = (*bu).readDB(fdID,nextIndexPTR,(PagePriority)(priority),indexBuff);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete indexBuff;
+			return DATABASEREADDBERROR;
+		}
+		SysIndex * curSysIndex = new SysIndex(indexBuff,_pageSize);
+		curIndexPTR = nextIndexPTR;
+		nextIndexPTR = curSysIndex->getNextSysIndexPage();
+		entryPosition = curSysIndex->searchSysIndexEntry(indexName,tableName,indexBuff);
+		if(entryPosition != -1)
+		{
+			// Index entry already exists.....
+			// Return error.
+			delete curSysIndex;
+			delete indexBuff;
+			return INDEXENTRYEXISTSERROR;
+		}
+		delete curSysIndex;
+		delete indexBuff;
+	}
+
+	// Check tableName exists
+	bool entryTableFound = false;
+	int nextSysTablesPTR = _sysTablesPTR,curSysTablesPTR = -1,tabEntryPos = -1;
+	while(nextSysTablesPTR != -1)
+	{
+		char * sysTablesBuff = new char [_pageSize];
+		retReadDB = (*bu).readDB(fdID,nextSysTablesPTR,(PagePriority)(priority),sysTablesBuff);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete sysTablesBuff;
+			return DATABASEREADDBERROR;
+		}
+		SysTables * curSysTables = new SysTables(sysTablesBuff,_pageSize);
+		if(curSysTables->getNoOfEntries()>0)
+		{
+			// Entries exist in the page
+			tabEntryPos = curSysTables->searchSysTableEntry(tableName,sysTablesBuff);
+			if(tabEntryPos > 0)
+			{
+				// Entry found
+				entryTableFound = true;
+			}
+		}
+		delete curSysTables;
+		delete sysTablesBuff;
+		if(entryTableFound == true)
+			break;
+	}
+
+	if(entryTableFound == false)
+	{
+		//Table Name not found
+		return INDEXCREATETABLENAMENOTFOUND;
+	}
+
+	// Check columnName exists
+	int columnLength = -1;
+	string columnDataType;
+	int nextSysColumnsPTR = _sysColumnsPTR,curSysColumnsPTR = -1,colEntryPos = -1;
+	bool entryColumnFound = false;
+	while(nextSysColumnsPTR != -1)
+	{
+		char * sysColumnsBuff = new char [_pageSize];
+		retReadDB = (*bu).readDB(fdID,nextSysColumnsPTR,(PagePriority)(priority),sysColumnsBuff);
+		if(retReadDB == false)
+		{
+			// Unable to write the buffer
+			// Return error
+			delete sysColumnsBuff;
+			return DATABASEREADDBERROR;
+		}
+		SysColumns * curSysColumns = new SysColumns(sysColumnsBuff,_pageSize);
+		if(curSysColumns->getNoOfEntries()>0)
+		{
+			colEntryPos = curSysColumns->searchSysColumnEntry(columnName,tableName,sysColumnsBuff);
+			if(colEntryPos > 0)
+			{
+				// Entry found
+				entryColumnFound = true;
+				char * entryBuff = new char [SYSCOLUMNENTRYSIZE];
+				memcpy(entryBuff,&sysColumnsBuff[0+(colEntryPos-1)*SYSCOLUMNENTRYSIZE],SYSCOLUMNENTRYSIZE);
+				SysColumnsEntry curEntry;
+				curEntry.getDataBuffer(entryBuff);
+				columnLength = curEntry.getLength();
+				columnDataType = curEntry.getDataType();
+				delete entryBuff;
+			}
+		}
+		delete curSysColumns;
+		delete sysColumnsBuff;
+		if(entryColumnFound == true)
+			break;
+	}
+
+	if(entryColumnFound == false)
+	{
+		//Column Name not found
+		return INDEXCREATECOLUMNNAMENOTFOUND;
+	}
+
+	if(entryPosition == -1)
+	{
+		// We can create a new SysIndex entry
+
+		SysIndexEntry newSysIndexEntry;
+		newSysIndexEntry.setIndexName(indexName);
+		newSysIndexEntry.setDBName(dbName);
+		newSysIndexEntry.setTableName(tableName);
+		newSysIndexEntry.setAvgKeyLength(columnLength);
+		newSysIndexEntry.setCloseRule('N');
+		newSysIndexEntry.setEraseRule('N');
+		newSysIndexEntry.setColCount(1);
+		newSysIndexEntry.setUniqueRule('D');
+		newSysIndexEntry.setRemarks("\0");
+		
+
+		IndexQuery * indexCreate = (IndexQuery *) malloc (sizeof(IndexQuery)*1);
+		indexCreate->queryType = 1;
+		*(indexCreate->rootPageID) = -1;
+		indexCreate->charLength = columnLength;
+		for(int c1 = 1;c1<8;c1++)
+			indexCreate->dataType[c1] = columnDataType[c1];
+
+		// Call the index function here
+
+		newSysIndexEntry.setFanOutNo(*(indexCreate->fanOut));
+		newSysIndexEntry.setIndexPageID(*(indexCreate->rootPageID));
+
+		int sysIndexEntryCreateResult = createNewSysIndexEntry(newSysIndexEntry);
+
+		if(sysIndexEntryCreateResult < 0)
+		{
+			// Return error
+			return SYSINDEXENTRYCREATEERROR;
+		}
+
+		free(indexCreate);
+	}
+
+	return 1;
 }
 
 int DB::dropIndex(query q)

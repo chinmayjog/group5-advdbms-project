@@ -63,11 +63,11 @@ class SysColumnsEntry
 
 	public: SysColumnsEntry()
 		{
-			_dbName = "Database Name";
-			_tableName = "Table Name";
-			_columnName = "Column Name";
+			_dbName = "\0";
+			_tableName = "\0";
+			_columnName = "\0";
 			_ordinalPosition = -1;
-			_columnDefault = "########################";
+			_columnDefault = "\0";
 			_isNullable = 'Y';
 			_dataType = "\0";
 			_length = -1;

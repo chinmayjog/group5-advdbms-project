@@ -60,9 +60,9 @@ class SysTableEntry
 	public: SysTableEntry()
 		{
 			//strcpy(_tableName,"Table Name");
-			_tableName = "Table Name";
+			_tableName = "\0";
 			//strcpy(_dbName,"Database Name");
-			_dbName = "Database Name";
+			_dbName = "\0";
 			_typeTable = 'T';
 			_colCount = 0;
 			_rowFormat = 'F';
@@ -245,6 +245,7 @@ class SysTables
 		bool checkEntryInsertion();
 		int createNewSysTableEntry(char *entryBuffer,char *sysTableBuffer);
 		int searchSysTableEntry(string tableName,char * sysTableBuffer);
+		//int searchSysTableEntry(bool searchTables,string tableName,char * sysTableBuffer);
 		int searchSysTableEntry(string tableName,string dbName,char * sysTableBuffer);
 		// Check if I can write it as a list of SysTableEntry objects instead of passing the buffer around.......
 		int deleteSysTableEntry(string tabName,char * sysTableBuffer);
