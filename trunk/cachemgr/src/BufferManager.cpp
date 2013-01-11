@@ -214,7 +214,7 @@ int BufferManager::initializeCache(int numberOfPages){
 	return false;
 }
 
-int BufferManager::createDB(string filepath, string filename, int sizeinBytes){
+int BufferManager::createDB(string filepath, string filename, long sizeinBytes){
 	fstream dbFile;
 	dbFile.open((filepath+filename).c_str(), ios::in | ios::binary);
 	if(dbFile){
@@ -322,7 +322,7 @@ bool BufferManager::writeDB(int fdID, int pgNo, PagePriority p, char* src){
 	return false;
 }
 
-int BufferManager::expandDB(int mdtID, int size){
+int BufferManager::expandDB(int mdtID, long size){
 	int dbStatus = closeDB(mdtID);
 	if( dbStatus == 1 || dbStatus == -2){
 		mdtID=openDB(mdt[mdtID].dbPath, mdt[mdtID].dbName);
@@ -367,7 +367,7 @@ bool BufferManager::listDBs(string filepath, vector<string> &files){
 	DIR *dp;
     struct dirent *dirp;
     if((dp  = opendir(filepath.c_str())) == NULL) {
-        cout << "Could not open directory" << endl;
+        //cout << "Could not open directory" << endl;
         return false;
     }
 
