@@ -384,7 +384,7 @@ int DB::evaluateLeafNode(char * data,condition * node,string * columnNames,strin
 					short dataTypeID = retDataTypeID(dataType);
 					for(int j = 0;j<noOfRightNodes;j++)
 					{
-						compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck[j].c_str(),dataTypeID);
+						compareResult = dataCompare(currentColumnValue,columnValueToCheck[j],dataTypeID);
 						if(compareResult == 0)
 							break;
 					}
@@ -413,7 +413,7 @@ int DB::evaluateLeafNode(char * data,condition * node,string * columnNames,strin
 					string currentValue = currentColumnValue;
 					for(int j = 0;j<noOfRightNodes;j++)
 					{
-						compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck[j].c_str(),dataTypeID);
+						compareResult = dataCompare(currentColumnValue,columnValueToCheck[j],dataTypeID);
 						if(compareResult == 0)
 							break;
 					}
@@ -552,7 +552,7 @@ int DB::evaluateLeafNode(char * data,condition * node,string * columnNames,strin
 					memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)+sizeof(int)],length);
 					short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
 					string currentValue = currentColumnValue;
-					compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck.c_str(),dataTypeID);
+					compareResult = dataCompare(currentColumnValue,columnValueToCheck,dataTypeID);
 					delete currentColumnValue;
 					if(currentValue.length() < columnValueToCheck.length())
 						return QUERYLENGTHERROR;
@@ -563,7 +563,7 @@ int DB::evaluateLeafNode(char * data,condition * node,string * columnNames,strin
 					memcpy(currentColumnValue,&data[sumOffSet+sizeof(short)],offset);
 					short dataTypeID = retDataTypeID((char *)dataTypes[i].c_str());
 					string currentValue = currentColumnValue;
-					compareResult = dataCompare(currentColumnValue,(char *)columnValueToCheck.c_str(),dataTypeID);
+					compareResult = dataCompare(currentColumnValue,columnValueToCheck,dataTypeID);
 					delete currentColumnValue;
 					if(strncmp(dataTypes[i].c_str(),"CHAR$$$$",8)==0)
 					{
@@ -4289,7 +4289,7 @@ int DB::deleteEntry(query q)
 				SysColumnsEntry curEntry;
 				curEntry.getDataBuffer(curSysColumnsEntry);
 				columnNames[curColCount] = curEntry.getColumnName();
-				dataTypes[curColCount] = curEntry.getColumnName();
+				dataTypes[curColCount] = curEntry.getDataType();
 				ordinalPositions[curColCount] = curEntry.getOrdinalPosition();
 				columnLengths[curColCount] = curEntry.getLength();
 				scales[curColCount] = curEntry.getScale();
@@ -4321,6 +4321,7 @@ int DB::deleteEntry(query q)
 			}
 			SysIndex * curSI = new SysIndex(sysIndexBuff,_pageSize);
 			int noOE = curSI->getNoOfEntries();
+			nextSysIndexPTR=curSI->getNextSysIndexPage();
 			if(noOE > 0)
 			{
 				for(int n1 = 0;n1<noOE;n1++)
@@ -4434,13 +4435,6 @@ int DB::deleteEntry(query q)
 					{
 						char * dataBuffer = new char [slotSize];
 						memcpy(dataBuffer,&dataPageBuffer[slotPointer],slotSize);
-
-						cout<<"\n Printing data..."<<endl;
-
-						for(int k = 0;k<slotSize;k++)
-							dataBuffer[k];
-
-						exit(0);
 
 						bool * deleted = new bool [1];
 
@@ -4717,7 +4711,7 @@ int DB::updateEntry(query q)
 				SysColumnsEntry curEntry;
 				curEntry.getDataBuffer(curSysColumnsEntry);
 				columnNames[curColCount] = curEntry.getColumnName();
-				dataTypes[curColCount] = curEntry.getColumnName();
+				dataTypes[curColCount] = curEntry.getDataType();
 				ordinalPositions[curColCount] = curEntry.getOrdinalPosition();
 				columnLengths[curColCount] = curEntry.getLength();
 				scales[curColCount] = curEntry.getScale();
@@ -5329,7 +5323,7 @@ int DB::selectEntry(query q)
 				SysColumnsEntry curEntry;
 				curEntry.getDataBuffer(curSysColumnsEntry);
 				columnNames[curColCount] = curEntry.getColumnName();
-				dataTypes[curColCount] = curEntry.getColumnName();
+				dataTypes[curColCount] = curEntry.getDataType();
 				ordinalPositions[curColCount] = curEntry.getOrdinalPosition();
 				columnLengths[curColCount] = curEntry.getLength();
 				scales[curColCount] = curEntry.getScale();
