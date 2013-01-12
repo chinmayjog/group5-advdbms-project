@@ -1,0 +1,15 @@
+CC = g++
+CFLAGS = -g
+LDFLAGS = -lm
+
+.PHONY: all clean
+
+all :  tree.o 
+	${CC} ${CFLAGS} tree.o ../cachemgr/obj/BufferManager.o ../cachemgr/obj/BufferManagerInterface.o ../cachemgr/obj/BufferManagerUtils.o ../DBEngine/SysTables.o ../DBEngine/SysColumns.o ../DBEngine/SysIndex.o ../DBEngine/FreeList.o ../DBEngine/DataPage.o ../DBEngine/DBHeader.o ../DBEngine/dataDirectoryPage.o ../DBEngine/DataTypes.o ../DBEngine/DB.o ${LDFLAGS} -o tree
+
+
+tree.o : tree.cpp  
+	${CC} ${CFLAGS} -c tree.cpp -o tree.o
+
+clean:
+	rm -f tree tree.o 
