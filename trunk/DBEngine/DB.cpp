@@ -2715,6 +2715,13 @@ int DB::createTable(/*Query Parameter Structure*/query q)
 	// Create a SysTable Entry for the table
 	// Create SysColumns entry for each of the columns of the table, if columnCount is not 0
 	// Create a Directory and Data Page for the table, updating the corresponding pages
+
+	if(fdID == -1)
+	{
+		// No database loaded error
+		return FDIDERROR;
+	}
+
 	int nextSysTabPointer = _sysTablesPTR, nextSysColumnsPointer = _sysColumnsPTR;
 	int curSysTabPointer = -1,curSysColsPointer = -1,i,j;
 	string tableName = q->table; // get the first table name
@@ -3133,6 +3140,11 @@ int DB::createIndex(query q)
 	// Call B+ tree code with data pages' data and its corresponding entry in the directory entry
 	// Pass Data and RID(PageNo,SlotID pair)
 
+	if(fdID == -1)
+	{
+		return FDIDERROR;
+	}
+
 	string dbName;
 	string indexName = q->index;
 	string tableName = q->table;
@@ -3336,6 +3348,12 @@ int DB::insertEntry(query q)
 	// If no, flag an error telling entry already exists
 	// Check whether entry has to be inserted and then the index updated or index will provide me the location to insert
 	// If SysTables Entry exists, and SysColumns Entries are 0 for the table, then return error COLUMNSNOTSPECIFIEDERROR
+
+	if(fdID == -1)
+	{
+		// No database loaded error
+		return FDIDERROR;
+	}
 
 	string tableName = q->table;
 	string dbName;
@@ -3945,6 +3963,7 @@ int DB::insertEntry(query q)
 					string indName = newSIEntry.getIndexName();
 					for(short cCount = 0;cCount<colCount;cCount++)
 					{
+						string columnDataType = dataTypes[cCount];
 						if(indName == columnNames[cCount])
 						{
 							// Index exists....
@@ -3964,6 +3983,8 @@ int DB::insertEntry(query q)
 							indexInsert->errorNum = (int *) malloc (sizeof(int));
 							keyRecord.dataPageID = *InsertedDataPageID;
 							keyRecord.slotID = *InsertedSlotID;
+							for(int c1 = 0;c1<8;c1++)
+								indexInsert->dataType[c1] = columnDataType[c1];
 							// Call the index function here
 							// indexInterface(this,indexInsert);
 							if(*(indexInsert->errorFlag) == true)
@@ -4143,6 +4164,12 @@ int DB::deleteEntry(query q)
 	// On delete entry, update the total free space for the data page entry in the Directory page. This is a must!!!!
 	// Update all the indices as well
 
+	if(fdID == -1)
+	{
+		// No database loaded error
+		return FDIDERROR;
+	}
+
 	bool indexUse = true;
 
 	if(q->andOrConditionFlag == true)
@@ -4301,7 +4328,8 @@ int DB::deleteEntry(query q)
 	}
 
 	// Try to use the index first
-	if(indexUse == true)
+	int resIndex = 0;
+	/*if(indexUse == true)
 	{
 		int nextSysIndexPTR = _sysIndexPTR;
 		
@@ -4331,20 +4359,62 @@ int DB::deleteEntry(query q)
 					cE.getDataBuffer(curEntry);
 					for(int cCount = 0;cCount<colCount;cCount++)
 					{
+						string columnDataType = dataTypes[cCount];
 						if(cE.getIndexName() == columnNames[cCount])
 						{
 							// You can use index
 							IndexQuery * indexDelete = (IndexQuery *) malloc(sizeof(IndexQuery));
-							
+							indexDelete->queryType = 7;
+							indexDelete->rootPageID = (int *) malloc (sizeof(int));
+							*(indexDelete->rootPageID) = newSIEntry.getIndexPageID();
+							indexDelete->resultFlag = (bool *) malloc (sizeof(bool));
+							indexDelete->fanOut = (int *) malloc (sizeof(int));
+							*(indexDelete->fanOut) = newSIEntry.getFanOutNo();
+							indexDelete->rootPageIDUpdated = (bool *) malloc (sizeof(bool));
+							indexDelete->newRootPageID = (int *) malloc (sizeof(int));
+							indexDelete->errorFlag = (bool *) malloc (sizeof(bool));
+							indexDelete->errorNum = (int *) malloc (sizeof(int));
+							for(int c1 = 1;c1<8;c1++)
+								indexInsert->dataType[c1] = columnDataType[c1];
+							string colName = q->rootcolname;
+							if(colName != cE.getIndexName())
+							{
+								indexUse == false;
+								delete curEntry;
+								break;
+							}
+							if(q->root->cond == INC)
+							{
+								indexUse == false;
+								delete curEntry;
+								break;
+							}
+							else
+							{
+								indexDelete->operatorType = q->root->cond;
+								string columnValue = q->root->rightstr[0];
+							}
+
+							// Call the index function here
+							// indexInterface(this,indexDelete);
 						}
 					}
 					delete curEntry;
+				}
+				if(indexUse == false)
+				{
+					delete curSI;
+					delete sysIndexBuff;
+					break;
 				}
 			}
 			delete curSI;
 			delete sysIndexBuff;
 		}
 	}
+
+	if(indexUse == true)
+		return resIndex;*/
 
 	int nextPTR = dirPageEntry;
 	int curPTR = -1;
@@ -4446,6 +4516,38 @@ int DB::deleteEntry(query q)
 							slotSize = (-1)*slotSize;
 							resCount++;
 							memcpy(&dataPageBuffer[FIRSTSLOTPTR-(j+1)*sizeof(long)-(j+1)*sizeof(int)],&slotSize,sizeof(int));
+							if(q->cntColumns == 1)
+							{
+								/*IndexQuery * indexInsert = (IndexQuery *) malloc (sizeof(IndexQuery)*1);
+								indexInsert->queryType = 7;
+								indexInsert->rootPageID = (int *) malloc (sizeof(int));
+								*(indexInsert->rootPageID) = newSIEntry.getIndexPageID();
+								indexInsert->resultFlag = (bool *) malloc (sizeof(bool));
+								indexInsert->fanOut = (int *) malloc (sizeof(int));
+								*(indexInsert->fanOut) = newSIEntry.getFanOutNo();
+								
+								RecordID keyRecord;
+								indexInsert->rootPageIDUpdated = (bool *) malloc (sizeof(bool));
+								indexInsert->newRootPageID = (int *) malloc (sizeof(int));
+								indexInsert->errorFlag = (bool *) malloc (sizeof(bool));
+								indexInsert->errorNum = (int *) malloc (sizeof(int));
+								keyRecord.dataPageID = *InsertedDataPageID;
+								keyRecord.slotID = *InsertedSlotID;
+								for(int c1 = 0;c1<8;c1++)
+									indexInsert->dataType[c1] = columnDataType[c1];
+
+								for(int c1 = 0;c1<colCount;c1++)
+								{
+									string curColName = q->root->colname;
+									if(curColName == columnNames[c1]
+									{
+										/*indexInsert->key = (char *) malloc(sizeof(columnLengths[c1]));
+										string colValue = rightstr[0];
+										indexInsert->key = (char *) colValue.c_str();
+										
+									}
+								}*/
+							}
 						}
 						delete deleted;
 						if(toBeDeleted < 0)
@@ -4567,6 +4669,12 @@ int DB::updateEntry(query q)
 	// Mark the slot as deleted and insert the data
 	// Else, the field is fixed length, so, just call the modify data page data directly...
 	// Delete only after the entry is inserted. Else, do not delete it !!!!
+
+	if(fdID == -1)
+	{
+		// No database loaded error
+		return FDIDERROR;
+	}
 
 	bool indexUse = true;
 
@@ -5179,6 +5287,12 @@ int DB::selectEntry(query q)
 	// If $ or #'s are present replace with '\0'
 	// Give column delimiters for the entries
 
+	if(fdID == -1)
+	{
+		// No database loaded error
+		return FDIDERROR;
+	}
+
 	bool indexUse = true;
 
 	if(q->andOrConditionFlag == true)
@@ -5459,16 +5573,19 @@ int DB::selectEntry(query q)
 								else if(strncmp(dataTypes[curColCount].c_str(),"CHAR$$$$",8) == 0)
 								{
 									for(int curLength = 0;curLength<columnLengths[curColCount];curLength++)
-										currentString = currentString + dataBuffer[selectPos+sizeof(short)+sizeof(int)+curLength];
+										currentString = currentString + dataBuffer[selectPos+sizeof(short)+/*sizeof(int)*/+curLength];
+									//cout<<currentString<<endl;
 								}
 								else
 								{
 									string currentTestString;
 									for(int curLength = 0;curLength<columnLengths[curColCount];curLength++)
-										currentTestString = currentTestString + dataBuffer[selectPos+sizeof(short)+sizeof(int)+curLength];
+										currentTestString = currentTestString + dataBuffer[selectPos+sizeof(short)+/*sizeof(int)*/curLength];
 									if(strncmp(dataTypes[curColCount].c_str(),"INT$$$$$",8) == 0 || strncmp(dataTypes[curColCount].c_str(),"UINT$$$$",8) == 0)
 									{
 										int curInt = atoi(currentTestString.c_str());
+										//memcpy(&curInt,&)
+										//cout<<curInt;
 										currentString = curInt;
 									}
 									else if(strncmp(dataTypes[curColCount].c_str(),"SMALLINT",8) == 0 || strncmp(dataTypes[curColCount].c_str(),"USMALL$$",8) == 0)
@@ -5548,6 +5665,11 @@ int DB::selectEntry(query q)
 int DB::showTables(query q)
 {
 	// For show tables command
+	if(fdID == -1)
+	{
+		// No database loaded error
+		return FDIDERROR;
+	}
 
 	int nextSysTabPointer = _sysTablesPTR, nextSysColumnsPointer = _sysColumnsPTR;
 	int curSysTabPointer = -1,curSysColsPointer = -1,i,j;
