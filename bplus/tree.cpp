@@ -3,8 +3,8 @@
 #include"globals_index.h"
 #include"../DBEngine/IndexQuery.h"
 
-int getFreePage(DB*);
-int addFreePageList(DB * curDB,int pageID);
+//int getFreePage(DB*);
+//int addFreePageList(DB * curDB,int pageID);
 
 int SIZEOFSTR;
 int FANOUT;
@@ -47,62 +47,62 @@ class btree
 	int found;
 	string index_file;
 	T step;
-	btree(IndexQuery*);
-	IndexQuery* start(IndexQuery*);
-	IndexQuery* create(IndexQuery*);
-	IndexQuery* insert_val(IndexQuery*);
-	IndexQuery* insert_check(IndexQuery*);
-	IndexQuery* search(IndexQuery*);
-	IndexQuery* update_key(IndexQuery*);
-	IndexQuery* update_record(IndexQuery*);
-	IndexQuery* delete_key(IndexQuery*);
-	IndexQuery* delete_record(IndexQuery*);
-	IndexQuery* drop(IndexQuery*);
-	IndexQuery* return_result(IndexQuery*,RecordID*);
-	T find_limit(char[]);
+	btree(IndexQuery*,DB*);
+	void start(IndexQuery*,DB*);
+	void create(IndexQuery*);
+	void insert_val(IndexQuery*,DB*);
+	void insert_check(IndexQuery*);
+	void search(IndexQuery*);
+	void update_key(IndexQuery*,DB*);
+	void update_record(IndexQuery*,DB*);
+	void delete_key(IndexQuery*);
+	void delete_record(IndexQuery*);
+	void drop(IndexQuery*,DB*);
+	void return_result(IndexQuery*,RecordID*);
+	T find_limit(short);
 	
 	leaf_node* read_leaf_page(int,T);
 	internal_node* read_internal_page(int,int,T);
 	void write_leaf_page(leaf_node*,T);
 	void write_internal_page(internal_node*,T);
-	IndexQuery* deleting(T,RecordID,IndexQuery*);
-	void delete_leaf(leaf_node*,T,internal_node*,RecordID);
-	void combine_leaf(leaf_node*,internal_node*,T); 
-	void combine_internal(internal_node*,internal_node*);
-	IndexQuery* delete_dup(T,IndexQuery*,int*);
-	IndexQuery* bulk_delete(T,T,IndexQuery*);
+	void deleting(T,RecordID,IndexQuery*);
+	void delete_leaf(leaf_node*,T,internal_node*,RecordID,IndexQuery*);
+	void combine_leaf(leaf_node*,internal_node*,T,IndexQuery*); 
+	void combine_internal(internal_node*,internal_node*,IndexQuery*);
+	void delete_dup(T,IndexQuery*,int*);
+	void bulk_delete(T,T,IndexQuery*);
 
-	IndexQuery* insert_key(T,RecordID,IndexQuery*);
-	void insert_leaf(leaf_node*,T,internal_node*,RecordID,IndexQuery*);
-	void insert_internal(internal_node*,T,internal_node*,internal_node*,IndexQuery*);
-	void split_leaf(leaf_node*,internal_node*,RecordID,IndexQuery*);
-	void split_internal(internal_node*,internal_node*,IndexQuery*);
-	IndexQuery* bulk_insert(T,T,T,IndexQuery*);
+	void insert_key(T,RecordID,IndexQuery*,DB*);
+	void insert_leaf(leaf_node*,T,internal_node*,RecordID,IndexQuery*,DB*);
+	void insert_internal(internal_node*,T,internal_node*,internal_node*,IndexQuery*,DB*);
+	void split_leaf(leaf_node*,internal_node*,RecordID,IndexQuery*,DB*);
+	void split_internal(internal_node*,internal_node*,IndexQuery*,DB*);
+	void bulk_insert(T,T,T,IndexQuery*,DB*);
 	
-	leaf_node* search_internal(internal_node *,T);
+	leaf_node* search_internal(internal_node *,T,IndexQuery*);
 	leaf_node* insert_search_internal(internal_node *,T);
 	leaf_node* search_leaf(leaf_node *,T,RecordID,int*,int*);
 	leaf_node* search_insert_leaf(leaf_node *,T,RecordID,int*,int*);
 	leaf_node* search_bulk_leaf(leaf_node *, T ,int *,int *);
-	leaf_node* searching_neighbor(T,RecordID,int*,int *);
-	leaf_node* searching_node(T,RecordID,int*);
+	leaf_node* searching_neighbor(T,RecordID,int*,int *,IndexQuery*);
+	leaf_node* searching_node(T,RecordID,int*,IndexQuery*);
 	leaf_node* search_for_neighbor(leaf_node *,T,RecordID,int*,int *);
 	leaf_node* compare(leaf_node*,T,RecordID,int*);
 	
 	int compare_data(T,T,string);
-	int searching(T,RecordID);
-	int searching_insert(T,RecordID);
-	leaf_node* searching_key(T,int*,int*);
+	int searching(T,RecordID,IndexQuery*);
+	int searching_insert(T,RecordID,IndexQuery*);
+	leaf_node* searching_key(T,int*,int*,IndexQuery*);
 	RecordID* bulk_search(T,T,IndexQuery*);
 	RecordID* search_dup(T,IndexQuery*,int*);
 	
-	IndexQuery* modify(T,RecordID,IndexQuery*);
+	void modify(T,RecordID,IndexQuery*,DB*);
 	
 	int compute_fanout(int);	
 };
 
 template <class T>
-btree<T>::btree(IndexQuery *query)
+btree<T>::btree(IndexQuery *query, DB *curDB)
 {
 	T val;
 	BufferManager *bu = BufferManager::getBufferManager();
@@ -116,22 +116,24 @@ btree<T>::btree(IndexQuery *query)
 	else 
 	primary = "n";
 
-	if(query->rootPageID==-1)
+	if(*query->rootPageID==-1)
 	{
 		FANOUT = compute_fanout(key_size);
-		query->fanOutChanged = true;
-		query->newFanOut = FANOUT;
+		*(query->fanOutChanged) = true;
+		*(query->newFanOut) = FANOUT;
 		root = new internal_node;
 		root->key.resize(FANOUT+1);
 		root->ptrs.resize(FANOUT+2);
-		root->page_no = getFreePage(query->curDB);
+		root->page_no = (curDB)->getFreePage();
+		*(query->rootPageID) = root->page_no;
+		//*(query->rootPageIDUpdated) = true;
 		leaf_node *l_temp = new leaf_node;
 		l_temp->key.resize(FANOUT+1);
 		l_temp->rid.resize(FANOUT+1);
 		l_temp->level=0;
 		l_temp->page_priority = 1;
 		l_temp->num_nodes=0;
-		l_temp->page_no = getFreePage(query->curDB); //Calling KP's get free page structure...
+		l_temp->page_no = (curDB)->getFreePage();//Calling KP's get free page structure...
 		l_temp->next=-1;
 		l_temp->prev=-1;
 	
@@ -149,81 +151,82 @@ btree<T>::btree(IndexQuery *query)
 	}
 	else
 	{
-		root = read_internal_page(query->rootPageID,3,val);
-		FANOUT = query->fanOut;
-		query->fanOutChanged = false;
+		root = read_internal_page(*query->rootPageID,3,val);
+		FANOUT = *(query->fanOut);
+		*(query->fanOutChanged) = false;
 	}
 }
 
 template<class T>
-IndexQuery* btree<T>::start(IndexQuery *query)
+void btree<T>::start(IndexQuery *query,DB *curDB)
 {
 	int choice,num,i;
 	T n,n1,s_dup;
 	T val;
-	IndexQuery *result;
 	string index,data,index_file,filename;
 	RecordID rid_temp,rid;	
 	if(query->queryType==1)
 	{
-		result = create(query);
+		create(query);
 	}	
 	else if(query->queryType==2)
 	{ 
-		result = insert_val(query);
+		insert_val(query,curDB);
 	}
 	else if(query->queryType==3)
 	{
-		result = insert_check(query);
+		insert_check(query);
 	}
 	else if(query->queryType==4)
 	{
-		result = search(query);
+		search(query);
 	}
 	else if(query->queryType==5)
 	{
-		result = update_key(query);	
+		update_key(query,curDB);	
 	}
 	else if(query->queryType==6)
 	{
-		result = update_record(query);
+		update_record(query,curDB);
 	}
 	else if(query->queryType==7)
 	{
-		result = delete_key(query); //deletion jst on d basis of key
+		delete_key(query); //deletion jst on d basis of key
 	}
 	else if(query->queryType==8)
 	{
-		result = delete_record(query); //deletion on d basis of key and rid
+		delete_record(query); //deletion on d basis of key and rid
 	}
 	else if(query->queryType==9)
 	{
-		result = drop(query);	
+		drop(query,curDB);	
 	}
-	return result;
-	
 }
 
 
 
 template <class T>
-IndexQuery* btree<T>::create(IndexQuery *query)
+void btree<T>::create(IndexQuery *query)
 {
 	data_type = query->dataType;
 	key_size = query->charLength;
 	FANOUT = compute_fanout(key_size);
-	query->fanOut = FANOUT;
-	query->rootPageID = root->page_no;
-	return query;
+	*(query->fanOut) = FANOUT;
+	*(query->rootPageID) = root->page_no;
 }
 
 template <class T>
-IndexQuery* btree<T>::insert_val(IndexQuery *query)
+void btree<T>::insert_val(IndexQuery *query,DB *curDB)
 {
 	RecordID rid;
 	int length;
+	int page_num;
 	T num,val;
-	root = read_internal_page(query->rootPageID,3,val);
+	if(*query->rootPageIDUpdated==false)
+	page_num = *query->rootPageID;
+	else
+	page_num = *query->newRootPageID;
+	root = read_internal_page(page_num,3,val);
 	if(data_type=="int")
 		length = sizeof(int);
 	else if(data_type=="string")
@@ -243,18 +246,21 @@ IndexQuery* btree<T>::insert_val(IndexQuery *query)
 	int j=0;
 	memcpy(&num,&query->key[j],length);
 	memcpy(&rid,&(query->keyRecord),sizeof(RecordID)); 
-	query = insert_key(num,rid,query);
-	return query;		
+	insert_key(num,rid,query,curDB);	
 }
 
 template <class T>
-IndexQuery* btree<T>::insert_check(IndexQuery *query)
+void btree<T>::insert_check(IndexQuery *query)
 {
 	T num,val;
-	int r=0,p=-1;
+	int r=0,p=-1,page_num;
 	int *flag = &r,*pos = &p;
 	struct leaf_node *l_temp = NULL;
-	root = read_internal_page(query->rootPageID,3,val);
+	if(*query->rootPageIDUpdated==false)
+	page_num = *query->rootPageID;
+	else
+	page_num = *query->newRootPageID;
+	root = read_internal_page(page_num,3,val);
 	if(data_type=="int")
 		length = sizeof(int);
 	else if(data_type=="string")
@@ -273,17 +279,16 @@ IndexQuery* btree<T>::insert_check(IndexQuery *query)
 	   length = 20;
 	int j=0;
 	memcpy(&num,&query->key[j],length);
-	l_temp = searching_key(num,flag,pos);
+	l_temp = searching_key(num,flag,pos,query);
 	if(*flag==1)
 	{
-		query->errorFlag = true;
-		query->errorNum = 500; //Value already exists
+		*(query->errorFlag) = true;
+		*(query->errorNum) = 500; //Value already exists
 	}
-	return query;
 }
 
 template <class T>
-IndexQuery* btree<T>::search(IndexQuery *query)
+void btree<T>::search(IndexQuery *query)
 {
 	int r=0,p=-1,l=0,j;
 	int *flag = &r,*pos = &p;
@@ -293,22 +298,23 @@ IndexQuery* btree<T>::search(IndexQuery *query)
 	j=0;
 	struct leaf_node *l_temp = NULL;
 	memcpy(&num,&query->key[j],query->charLength);
-	if((string(query->operatorID)).compare("=")==0)
+	if(query->operatorType==0 || query->operatorType==1)
 	{
 		if(primary=="y")
 		{
-			l_temp = searching_key(num,flag,pos);
+			l_temp = searching_key(num,flag,pos,query);
 			if(*flag==1)
 			{
-				(*(query->keyRecords[0])).dataPageID = (l_temp->rid[*pos]).dataPageID; 
-				(*(query->keyRecords[0])).slotID = (l_temp->rid[*pos]).slotID; 
-				query->totalResults = 1;
-				query->returnedKeys = 1;
+				(*(query->keyRecords)).dataPageID = (l_temp->rid[*pos]).dataPageID; 
+				(*(query->keyRecords)).slotID = (l_temp->rid[*pos]).slotID; 
+				*(query->totalResults) = 1;
+				*(query->returnedKeys) = 1;
+				*(query->resultFlag) = true;
 			}
 			else
 			{
-				query->errorFlag = true;
-				query->errorNum = 501; //Value doesnt exists
+				*(query->errorFlag) = true;
+				*(query->errorNum) = 501; //Value doesnt exists
 			}
 		}
 		else if(primary=="n")
@@ -316,33 +322,33 @@ IndexQuery* btree<T>::search(IndexQuery *query)
 			record = search_dup(num,query,check); //searched duplicates for a key and returns result set in record...
 			if(*check==0)
 			{
-				query->errorFlag = true;
-				query->errorNum = 501; //Value doesnt exists
-				query->lastKeyID = 0;
+				*(query->errorFlag) = true;
+				*(query->errorNum) = 501; //Value doesnt exists
+				*(query->lastKeyID) = 0;
 			}
 			else
 			{
-				query = return_result(query,record);
+				return_result(query,record);
+				*(query->resultFlag) = true;
 			}
 		}
 	}
-	else if(string(query->operatorID).compare("<=")==0 || string(query->operatorID).compare("<")==0)
+	else if(query->operatorType==2 || query->operatorType==3)
 	{
-		T v1 = find_limit(query->operatorID);
+		T v1 = find_limit(query->operatorType);
 		record = bulk_search(v1,num,query);	
-		query = return_result(query,record);
+		return_result(query,record);
 	}
-	else if(string(query->operatorID).compare(">=")==0 || string(query->operatorID).compare(">")==0)
+	else if(query->operatorType==4 || query->operatorType==5)
 	{
-		T v2 = find_limit(query->operatorID);
+		T v2 = find_limit(query->operatorType);
 		record = bulk_search(num,v2,query);
-		query = return_result(query,record);
+		return_result(query,record);
 	}	
-	return query;	
 }
 
 template <class T>
-IndexQuery* btree<T>::update_key(IndexQuery *query)
+void btree<T>::update_key(IndexQuery *query, DB *curDB)
 {
 	T num;
 	RecordID rid;
@@ -350,12 +356,11 @@ IndexQuery* btree<T>::update_key(IndexQuery *query)
 	length = query->charLength;
 	memcpy(&num,&query->oldKey,length);
 	memcpy(&rid,&query->oldKeyRecord,sizeof(RecordID));
-	query = modify(num,rid,query);
-	return query;
+	modify(num,rid,query,curDB);
 }
 
 template <class T>
-IndexQuery* btree<T>::update_record(IndexQuery *query)
+void btree<T>::update_record(IndexQuery *query, DB *curDB)
 {
 	T num;
 	RecordID rid;
@@ -363,12 +368,11 @@ IndexQuery* btree<T>::update_record(IndexQuery *query)
 	length = query->charLength;
 	memcpy(&num,&query->oldKey,length);
 	memcpy(&rid,&query->oldKeyRecord,sizeof(RecordID));
-	query = modify(num,rid,query);
-	return query;
+	modify(num,rid,query,curDB);
 }
 
 template <class T>
-IndexQuery* btree<T>::delete_key(IndexQuery *query)
+void btree<T>::delete_key(IndexQuery *query)
 {
 	int r=0,p=-1,l=0,j;
 	int *flag = &r,*pos = &p;
@@ -378,49 +382,48 @@ IndexQuery* btree<T>::delete_key(IndexQuery *query)
 	struct leaf_node* l_temp = NULL;
 	j=0;
 	memcpy(&num,&query->key[j],query->charLength);
-	if((string(query->operatorID)).compare("=")==0)
+	if(query->operatorType==0)
 	{
 		if(primary=="y")
 		{
-			l_temp = searching_key(num,flag,pos);
+			l_temp = searching_key(num,flag,pos,query);
 			if(*flag==1)
 			{
 				rid.dataPageID = l_temp->rid[*pos].dataPageID;
 				rid.slotID = l_temp->rid[*pos].slotID;
-				query = deleting(num,rid,query);
+				deleting(num,rid,query);
 			}
 			else
 			{
-				query->errorFlag = true;
-				query->errorNum = 501; //Value doesnt exists
+				*(query->errorFlag) = true;
+				*(query->errorNum) = 501; //Value doesnt exists
 			}
 		}
 		else if(primary=="n")
 		{
-			query = delete_dup(num,query,check); //searched duplicates for a key and returns result set in record...
+			delete_dup(num,query,check); //searched duplicates for a key and returns result set in record...
 			if(*check==0)
 			{
-				query->errorFlag = true;
-				query->errorNum = 501; //Value doesnt exists
-				query->lastKeyID = 0;
+				*(query->errorFlag) = true;
+				*(query->errorNum) = 501; //Value doesnt exists
+				*(query->lastKeyID) = 0;
 			}
 		}
 	}
-	else if((string(query->operatorID)).compare("<=")==0)
+	else if(query->operatorType==2 || query->operatorType==3)
 	{
-		T v1 = find_limit(query->operatorID);
-		query = bulk_delete(v1,num,query);	
+		T v1 = find_limit(query->operatorType);
+		bulk_delete(v1,num,query);	
 	}
-	else if((string(query->operatorID)).compare(">=")==0)
+	else if(query->operatorType==4 || query->operatorType==5)
 	{
-		T v2 = find_limit(query->operatorID);
-		query = bulk_delete(num,v2,query);
+		T v2 = find_limit(query->operatorType);
+		bulk_delete(num,v2,query);
 	}	
-	return query;	
 }
 
 template <class T>
-IndexQuery* btree<T>::delete_record(IndexQuery *query)
+void btree<T>::delete_record(IndexQuery *query)
 {
 	T num;
 	RecordID rid;
@@ -428,12 +431,11 @@ IndexQuery* btree<T>::delete_record(IndexQuery *query)
 	length = query->charLength;
 	memcpy(&num,&query->key[j],length);
 	memcpy(&rid,&query->keyRecord,sizeof(RecordID));
-	query = deleting(num,rid,query);
-	return query;
+	deleting(num,rid,query);
 }
 
 template <class T>
-IndexQuery* btree<T>::drop(IndexQuery *query)
+void btree<T>::drop(IndexQuery *query,DB *curDB)
 {
 	int i,count=0;
 	T val;
@@ -447,7 +449,11 @@ IndexQuery* btree<T>::drop(IndexQuery *query)
 	l_temp->key.resize(FANOUT+1);	
 	l_temp->rid.resize(FANOUT+1);	
 	queue<internal_node*> level_order;
-	page_num = root->page_no;
+	if(*query->rootPageIDUpdated==false)
+	page_num = *query->rootPageID;
+	else
+	page_num = *query->newRootPageID;
+	
 	root = read_internal_page(page_num,root->page_priority,val);
 	level_order.push(root);
 
@@ -458,11 +464,11 @@ IndexQuery* btree<T>::drop(IndexQuery *query)
 		if(int_temp->level==0)
 		{
 			l_temp = (leaf_node*)int_temp;
-			addFreePageList(query->curDB,l_temp->page_no); //adding all pages in a queue and calling addFreePageList one by one,...
+			curDB->addFreePageList(l_temp->page_no); //adding all pages in a queue and calling addFreePageList one by one,...
 		}
 		else
 		{ 
-			addFreePageList(query->curDB,int_temp->page_no);
+			curDB->addFreePageList(int_temp->page_no);
 			for(i=0;i<=int_temp->num_nodes && int_temp->level>1;i++)
 			{
 				page_num = int_temp->ptrs[i];
@@ -488,86 +494,91 @@ IndexQuery* btree<T>::drop(IndexQuery *query)
 }
 
 template <class T>
-IndexQuery* btree<T>::return_result(IndexQuery *query,RecordID *record)
+void btree<T>::return_result(IndexQuery *query,RecordID *record)
 {
 	int j;
-	if(query->lastKeyID !=1) //when not set
+	if(*(query->lastKeyID) !=1) //when not set
 	{		
-		if(query->limitKeys < query->totalResults)
+		if(query->limitKeys < *(query->totalResults))
 		{	
-			query->returnedKeys = query->limitKeys;
-			query->lastKeyID = 1;
+			*(query->returnedKeys) = query->limitKeys;
+			*(query->lastKeyID) = 1;
 			j=1;
+			query->keyRecords = (RecordID*)malloc(query->limitKeys * sizeof(RecordID));
 			while(j<=query->limitKeys)
 			{
-				(*(query->keyRecords[j])).dataPageID = (record[j]).dataPageID;
-				(*(query->keyRecords[j])).slotID = (record[j]).slotID;
+				((query->keyRecords[j])).dataPageID = (record[j]).dataPageID;
+				((query->keyRecords[j])).slotID = (record[j]).slotID;
 			}
-			(query->lastRecordID).dataPageID = record[j-1].dataPageID;
-			(query->lastRecordID).slotID = record[j-1].slotID;
+			(*(query->lastKeyRecordID)).dataPageID = record[j-1].dataPageID;
+			(*(query->lastKeyRecordID)).slotID = record[j-1].slotID;
 		}
 		else
 		{
-			query->lastKeyID = 0;
-			query->returnedKeys = query->totalResults;
+			*(query->lastKeyID) = 0;
+			*(query->returnedKeys) = *(query->totalResults);
 			j=1;
-			while(j<=query->totalResults)
+			query->keyRecords = (RecordID*)malloc(*query->totalResults * sizeof(RecordID));
+			while(j<= *(query->totalResults))
 			{
-				(*(query->keyRecords[j])).dataPageID = (record[j]).dataPageID;
-				(*(query->keyRecords[j])).slotID = (record[j]).slotID;
+				((query->keyRecords[j])).dataPageID = (record[j]).dataPageID;
+				((query->keyRecords[j])).slotID = (record[j]).slotID;
 				j++;
 			}
-			(query->lastRecordID).dataPageID = record[j-1].dataPageID;
-			(query->lastRecordID).slotID = record[j-1].slotID;
+			(*(query->lastKeyRecordID)).dataPageID = record[j-1].dataPageID;
+			(*(query->lastKeyRecordID)).slotID = record[j-1].slotID;
 		}
 	}
 	else
 	{
 		 //again search n send d remaining... searching again bcz d earlier set will be lost
-		int count = (query->totalResults - query->returnedKeys);
+		int count = (*(query->totalResults) - *(query->returnedKeys));
 		if(count <= query->limitKeys)
 		{
 			j=1;
 			int i = count+1;
 			while(j<=count)
 			{
-				(*(query->keyRecords[j])).dataPageID = (record[i]).dataPageID;
-				(*(query->keyRecords[j])).slotID = (record[i]).slotID;
+				query->keyRecords = (RecordID*)malloc(count * sizeof(RecordID));
+				((query->keyRecords[j])).dataPageID = (record[i]).dataPageID;
+				((query->keyRecords[j])).slotID = (record[i]).slotID;
 				j++;
 				i++;
-				query->lastKeyID = 0;
+				*query->lastKeyID = 0;
 			}
-			(query->lastRecordID).dataPageID = record[i-1].dataPageID;
-			(query->lastRecordID).slotID = record[i-1].slotID;
-			query->returnedKeys = query->returnedKeys + (j-1);
+			(*(query->lastKeyRecordID)).dataPageID = record[i-1].dataPageID;
+			(*(query->lastKeyRecordID)).slotID = record[i-1].slotID;
+			*(query->returnedKeys) = *(query->returnedKeys) + (j-1);
 		}
 		else
 		{
 			j=1;
 			int i = count+1;
+			query->keyRecords = (RecordID*)malloc(query->limitKeys * sizeof(RecordID));
 			while(j <= query->limitKeys)
 			{
-				(*(query->keyRecords[j])).dataPageID = (record[i]).dataPageID;
-				(*(query->keyRecords[j])).slotID = (record[i]).slotID;
+				((query->keyRecords[j])).dataPageID = (record[i]).dataPageID;
+				((query->keyRecords[j])).slotID = (record[i]).slotID;
 				j++;
 				i++;
-				query->lastKeyID = 1;
+				*query->lastKeyID = 1;
 			}
-			(query->lastRecordID).dataPageID = record[i-1].dataPageID;
-			(query->lastRecordID).slotID = record[i-1].slotID;
-			query->returnedKeys = query->returnedKeys + (j-1);	
+			(*(query->lastKeyRecordID)).dataPageID = record[i-1].dataPageID;
+			(*(query->lastKeyRecordID)).slotID = record[i-1].slotID;
+			*(query->returnedKeys) = *(query->returnedKeys) + (j-1);	
 		}
 	}
-	return query;
+	*(query->resultFlag) = true;
+	
 }
 
 
 template <class T>
-T btree<T>::find_limit(char* operatorID)
+T btree<T>::find_limit(short operatorType)
 {
 	T val,num;
 	int page_num;
-	if(string(operatorID).compare("<=")==0 || string(operatorID).compare("<")==0)
+	if(operatorType==2 || operatorType==3)
 	{
 		internal_node *int_temp = NULL;
 		int_temp = read_internal_page(root->page_no,root->page_priority,val);
@@ -582,7 +593,7 @@ T btree<T>::find_limit(char* operatorID)
 		delete(int_temp);
 		delete(temp_leaf);
 	}
-	else if(string(operatorID).compare(">=")==0 || string(operatorID).compare(">")==0)
+	else if(operatorType==4 || operatorType==5)
 	{
 		internal_node *int_temp = NULL;
 		int_temp = read_internal_page(root->page_no,root->page_priority,val);
@@ -730,7 +741,7 @@ RecordID* btree<T>::search_dup(T num,IndexQuery *query,int *flag)
 	//leaf_node *leaf_arr;
 	l_temp->key.resize(FANOUT+1);	
 	l_temp->rid.resize(FANOUT+1);
-	l_temp = searching_key(num,flag,pos);
+	l_temp = searching_key(num,flag,pos,query);
 	//cout<<endl<<"l_temp->page_no: "<<l_temp->page_no<<endl;
 	if(*flag==1)
 	{
@@ -763,7 +774,7 @@ RecordID* btree<T>::search_dup(T num,IndexQuery *query,int *flag)
 	{
 		*flag = 0;
 	}
-	query->totalResults = count;
+	*(query->totalResults) = count;
 	return record;
 }
 
@@ -788,7 +799,7 @@ RecordID* btree<T>::bulk_search(T n1,T n2,IndexQuery *query)
 	leaf_node *l_temp = new leaf_node;	
 	l_temp->key.resize(FANOUT+1);	
 	l_temp->rid.resize(FANOUT+1);
-	l_temp = searching_key(n1,flag,pos);
+	l_temp = searching_key(n1,flag,pos,query);
 	if(*flag ==1)
 	{
 		//l_temp = searching_node(n1,tr,pos);
@@ -820,7 +831,7 @@ RecordID* btree<T>::bulk_search(T n1,T n2,IndexQuery *query)
 	{
 		record[count].dataPageID = tr.dataPageID;
 		record[count].slotID = tr.slotID;
-		searching(i,tr);
+		searching(i,tr,query);
 		//read_leaf_page(l_temp);
 		if(*pos < (l_temp->num_nodes-1))
 		{
@@ -850,7 +861,7 @@ RecordID* btree<T>::bulk_search(T n1,T n2,IndexQuery *query)
 			break;
 		}	
 	}	
-	query->totalResults = count-1;
+	*(query->totalResults) = count-1;
 	return record;	
 }
 
@@ -1088,13 +1099,17 @@ typename btree<T>::leaf_node* btree<T>::search_for_neighbor(leaf_node *l_temp,T 
 }
 
 template <class T>
-typename btree<T>::leaf_node* btree<T>::search_internal(internal_node *int_temp,T num)
+typename btree<T>::leaf_node* btree<T>::search_internal(internal_node *int_temp,T num,IndexQuery *query)
 {
 	int i,pos;
 	int page_num;
 	T val;
 	leaf_node *temp_node_leaf = NULL;
-	page_num = root->page_no;
+	if(*query->rootPageIDUpdated==false)
+	page_num = *query->rootPageID;
+	else
+	page_num = *query->newRootPageID;
+	
 	//cout<<endl<<"Reading root...."<<endl;
 	root = read_internal_page(page_num,root->page_priority,val);
 	//cout<<endl<<"Read root...."<<endl;
@@ -1171,7 +1186,7 @@ typename btree<T>::leaf_node* btree<T>::insert_search_internal(internal_node *in
 }
 
 template <class T>
-int btree<T>::searching(T num,RecordID rid)
+int btree<T>::searching(T num,RecordID rid,IndexQuery *query)
 {
 	int res,res1;
 	int page_num;
@@ -1185,7 +1200,11 @@ int btree<T>::searching(T num,RecordID rid)
 	leaf_node *l_temp = new leaf_node;	
 	l_temp->key.resize(FANOUT+1);	
 	l_temp->rid.resize(FANOUT+1);
-	page_num = root->page_no;
+	if(*query->rootPageIDUpdated==false)
+	page_num = *query->rootPageID;
+	else
+	page_num = *query->newRootPageID;
+	
 	root = read_internal_page(page_num,root->page_priority,val);	
 	if(root->num_nodes==0)
 	{
@@ -1204,14 +1223,14 @@ int btree<T>::searching(T num,RecordID rid)
 	}
 	else
 	{
-		l_temp = search_internal(root,num);
+		l_temp = search_internal(root,num,query);
 		l_temp = search_leaf(l_temp,num,rid,flag,pos);
 	}
 	return (*flag);
 }
 
 template <class T>
-int btree<T>::searching_insert(T num,RecordID rid)
+int btree<T>::searching_insert(T num,RecordID rid,IndexQuery *query)
 {
 	int res,res1;
 	int page_num;
@@ -1225,7 +1244,10 @@ int btree<T>::searching_insert(T num,RecordID rid)
 	leaf_node *l_temp = new leaf_node;	
 	l_temp->key.resize(FANOUT+1);	
 	l_temp->rid.resize(FANOUT+1);
-	page_num = root->page_no;
+	if(*query->rootPageIDUpdated==false)
+	page_num = *query->rootPageID;
+	else
+	page_num = *query->newRootPageID;
 	root = read_internal_page(page_num,root->page_priority,val);	
 	if(root->num_nodes==0)
 	{
@@ -1242,7 +1264,7 @@ int btree<T>::searching_insert(T num,RecordID rid)
 	}
 	else
 	{
-		l_temp = search_internal(root,num);
+		l_temp = search_internal(root,num,query);
 		l_temp = search_insert_leaf(l_temp,num,rid,flag,pos);
 	}
 	//if(*flag==0)
@@ -1251,14 +1273,18 @@ int btree<T>::searching_insert(T num,RecordID rid)
 }
 
 template <class T>
-typename btree<T>::leaf_node* btree<T>::searching_key(T num,int *flag,int *pos)
+typename btree<T>::leaf_node* btree<T>::searching_key(T num,int *flag,int *pos,IndexQuery *query)
 {
 	int page_num;
 	T val;
 	leaf_node *l_temp = new leaf_node;	
 	l_temp->key.resize(FANOUT+1);	
 	l_temp->rid.resize(FANOUT+1);
-	page_num = root->page_no;
+	if(*query->rootPageIDUpdated==false)
+	page_num = *query->rootPageID;
+	else
+	page_num = *query->newRootPageID;
+	
 	root = read_internal_page(page_num,root->page_priority,val);	
 	if(root->num_nodes==0)
 	{	
@@ -1275,7 +1301,7 @@ typename btree<T>::leaf_node* btree<T>::searching_key(T num,int *flag,int *pos)
 	}
 	else
 	{
-		l_temp = search_internal(root,num);
+		l_temp = search_internal(root,num,query);
 		l_temp = search_bulk_leaf(l_temp,num,flag,pos);
 	}
 	/*if(*flag==0)
@@ -1285,7 +1311,7 @@ typename btree<T>::leaf_node* btree<T>::searching_key(T num,int *flag,int *pos)
 }
 
 template <class T>
-typename btree<T>::leaf_node* btree<T>::searching_node(T num,RecordID rid,int *pos)
+typename btree<T>::leaf_node* btree<T>::searching_node(T num,RecordID rid,int *pos,IndexQuery *query)
 {
 	int i,res,page_num;
 	//RecordID rid;
@@ -1296,7 +1322,11 @@ typename btree<T>::leaf_node* btree<T>::searching_node(T num,RecordID rid,int *p
 	leaf_node *l_temp = new leaf_node;	
 	l_temp->key.resize(FANOUT+1);	
 	l_temp->rid.resize(FANOUT+1);	
-	page_num = root->page_no;
+	if(*query->rootPageIDUpdated==false)
+	page_num = *query->rootPageID;
+	else
+	page_num = *query->newRootPageID;
+	
 	root = read_internal_page(page_num,root->page_priority,val);
 	if(root->num_nodes==0)
 	{
@@ -1315,7 +1345,7 @@ typename btree<T>::leaf_node* btree<T>::searching_node(T num,RecordID rid,int *p
 	}
 	else
 	{
-		l_temp = search_internal(root,num);
+		l_temp = search_internal(root,num,query);
 		l_temp = search_leaf(l_temp,num,rid,flag,pos);
 	}
 	//if(*flag==0)
@@ -1324,7 +1354,7 @@ typename btree<T>::leaf_node* btree<T>::searching_node(T num,RecordID rid,int *p
 }
 
 template <class T>
-typename btree<T>::leaf_node* btree<T>::searching_neighbor(T num,RecordID rid,int *flag,int *pos)
+typename btree<T>::leaf_node* btree<T>::searching_neighbor(T num,RecordID rid,int *flag,int *pos,IndexQuery *query)
 {
 	int i,res,res1;
 	//RecordID rid;
@@ -1334,7 +1364,11 @@ typename btree<T>::leaf_node* btree<T>::searching_neighbor(T num,RecordID rid,in
 	leaf_node *l_temp = new leaf_node;	
 	l_temp->key.resize(FANOUT+1);	
 	l_temp->rid.resize(FANOUT+1);	
-	page_num = root->page_no;
+	if(*query->rootPageIDUpdated==false)
+	page_num = *query->rootPageID;
+	else
+	page_num = *query->newRootPageID;
+	
 	root = read_internal_page(page_num,root->page_priority,val);
 	if(root->num_nodes==0)
 	{
@@ -1354,7 +1388,7 @@ typename btree<T>::leaf_node* btree<T>::searching_neighbor(T num,RecordID rid,in
 	}
 	else
 	{
-		l_temp = search_internal(root,num);
+		l_temp = search_internal(root,num,query);
 		l_temp = search_for_neighbor(l_temp,num,rid,flag,pos);
 	}
 	//if(*flag==0)
@@ -1390,34 +1424,34 @@ int btree<string>::compare_data(string data1,string data2,string data_type)
 }
 
 template<class T>
-IndexQuery* btree<T>::modify(T data,RecordID rid,IndexQuery *query)
+void btree<T>::modify(T data,RecordID rid,IndexQuery *query,DB *curDB)
 {
 	int res,page_no,slot_no,j;
 	T val,num;
 	int *pos = &res;
 	*pos = 0;
 	RecordID tr;
-	int flag = searching(data,rid);
+	int flag = searching(data,rid,query);
 	if(flag==0)
 	{
 		//cout<<"RID you are trying to modify doesnt exist ";
-		query->errorFlag = true;
-		query->errorNum = 501;
+		*(query->errorFlag) = true;
+		*query->errorNum = 501;
 	}
 	else
 	{
 		if(query->queryType==5)
 		{
-			query = deleting(data,rid,query);
+			deleting(data,rid,query);
 			memcpy(&num,&query->newKey,query->newKeyLength);
 			memcpy(&tr,&query->newKeyRecord,sizeof(RecordID));
-			query = insert_key(num,tr,query);
+			insert_key(num,tr,query,curDB);
 		}
 		else if(query->queryType==6)
 		{
 			if(query->isPrimary==true)
 			{
-				struct leaf_node *l_temp = searching_node(data,rid,pos);
+				struct leaf_node *l_temp = searching_node(data,rid,pos,query);
 				j=0;
 				memcpy(&tr,&query->newKeyRecord,sizeof(RecordID));
 				l_temp->rid[*pos].dataPageID = 	tr.dataPageID;
@@ -1427,13 +1461,12 @@ IndexQuery* btree<T>::modify(T data,RecordID rid,IndexQuery *query)
 			else
 			{
 				j=0;
-				query = deleting(data,rid,query);
+				deleting(data,rid,query);
 				memcpy(&tr,&query->newKeyRecord,sizeof(RecordID));
-				query = insert_key(num,tr,query);
+				insert_key(num,tr,query,curDB);
 			}
 		}
-	}
-	return query;	
+	}	
 }
 
 
@@ -2096,7 +2129,7 @@ void btree<string>::write_internal_page(struct internal_node *i_read,string val)
 }
 
 template <class T>
-void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
+void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent,IndexQuery *query)
 {
 	int i,pos,val,j,len=0,k;
 	T value;
@@ -2117,7 +2150,11 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 		temp_node_leaf = read_leaf_page(page_num,value);
 		child = (internal_node*)temp_node_leaf;
 	}
-	page_num = root->page_no;
+	if(*query->rootPageIDUpdated==false)
+	page_num = *query->rootPageID;
+	else
+	page_num = *query->newRootPageID;
+	//page_num = root->page_no;
 	root = read_internal_page(page_num,3,value);
 	if(int_temp->page_no==root->page_no)
 	{
@@ -2125,6 +2162,9 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 		{	
 			child->page_priority = 3;
 			root=child;
+			*query->rootPageIDUpdated = true;
+			//*query->rootPageID = root->page_no;
+			*query->newRootPageID = root->page_no;
 			write_internal_page(root,value);
 		}
 	}
@@ -2645,14 +2685,14 @@ void btree<T>::combine_internal(internal_node* int_temp,internal_node* parent)
 			}
 	
 			if(parent->num_nodes<(FANOUT/2)) 
-				combine_internal(parent,int_temp);	
+				combine_internal(parent,int_temp,query);	
 			
 		}
 	}
 }
 
 template <class T>
-void btree<T>::combine_leaf(leaf_node* l_temp,internal_node* parent,T num)
+void btree<T>::combine_leaf(leaf_node* l_temp,internal_node* parent,T num,IndexQuery *query)
 {	
 	int i,pos,value,j,len=0,k;
 	int page_num,page_priority;
@@ -2817,7 +2857,7 @@ void btree<T>::combine_leaf(leaf_node* l_temp,internal_node* parent,T num)
 		write_internal_page(parent,val);
 		//write_leaf_page(ln_next);
 		if(parent->num_nodes<(FANOUT/2)) 
-			combine_internal(parent,int_temp);
+			combine_internal(parent,int_temp,query);
 	}
 	else//left and right nodes both not enough
 	{
@@ -2895,13 +2935,13 @@ void btree<T>::combine_leaf(leaf_node* l_temp,internal_node* parent,T num)
 		write_leaf_page(ln_next,val);
 		write_leaf_page(ln_prev,val);
 		if(parent->num_nodes<(FANOUT/2)) 
-			combine_internal(parent,int_temp);
+			combine_internal(parent,int_temp,query);
 	}
 	//write_internal_page(int_temp);
 }
 
 template <class T>
-void btree<T>::delete_leaf(leaf_node* l_temp,T num,internal_node* parent,RecordID rid)
+void btree<T>::delete_leaf(leaf_node* l_temp,T num,internal_node* parent,RecordID rid,IndexQuery *query)
 {
 	int i,pos;
 	T val;
@@ -2930,12 +2970,12 @@ void btree<T>::delete_leaf(leaf_node* l_temp,T num,internal_node* parent,RecordI
 	write_leaf_page(l_temp,val);
 
 	if(l_temp->num_nodes<(FANOUT/2)) 
-	combine_leaf(l_temp,parent,num);	
+	combine_leaf(l_temp,parent,num,query);	
 
 }
 
 template <class T>
-IndexQuery* btree<T>::deleting(T num,RecordID rid,IndexQuery* query)
+void btree<T>::deleting(T num,RecordID rid,IndexQuery* query)
 {
 	int r=0,res1 = 0;
 	int page_num;
@@ -2949,10 +2989,14 @@ IndexQuery* btree<T>::deleting(T num,RecordID rid,IndexQuery* query)
 	leaf_node* l_temp=new leaf_node;
 	l_temp->key.resize(FANOUT+1);	
 	l_temp->rid.resize(FANOUT+1);	
+	if(*query->rootPageIDUpdated==false)
+	page_num = *query->rootPageID;
+	else
+	page_num = *query->newRootPageID;
 	root = read_internal_page(root->page_no,3,val);
 	if(primary=="y")
 	{	
-		l_temp = search_internal(root,num);
+		l_temp = search_internal(root,num,query);
 		l_temp = search_leaf(l_temp,num,rid,res,pos);
 	
 		if(*res==1)
@@ -2965,18 +3009,18 @@ IndexQuery* btree<T>::deleting(T num,RecordID rid,IndexQuery* query)
 			parent = read_internal_page(page_num,3,val);		
 			else
 			parent = read_internal_page(page_num,2,val);		
-			delete_leaf(l_temp,num,parent,rid);
+			delete_leaf(l_temp,num,parent,rid,query);
 		}
 		else
 		{
-			query->errorFlag = true;
-			query->errorNum = 501;
+			*(query->errorFlag) = true;
+			*(query->errorNum) = 501;
 		}
 	}
 	else
 	{
-		l_temp = search_internal(root,num);
-		l_temp = searching_neighbor(num,rid,res,pos);
+		l_temp = search_internal(root,num,query);
+		l_temp = searching_neighbor(num,rid,res,pos,query);
 		
 		if(*res==2)
 		{
@@ -2988,25 +3032,24 @@ IndexQuery* btree<T>::deleting(T num,RecordID rid,IndexQuery* query)
 			parent = read_internal_page(page_num,3,val);		
 			else
 			parent = read_internal_page(page_num,2,val);		
-			delete_leaf(l_temp,num,parent,rid);
+			delete_leaf(l_temp,num,parent,rid,query);
 		}
 		else if(*res==0)
 		{
-			query->errorFlag = true;
-			query->errorNum = 501;
+			*(query->errorFlag) = true;
+			*(query->errorNum) = 501;
 		}
 	}
-	if(query->rootPageID!=root->page_no)
+	if(*(query->rootPageID)!=root->page_no)
 	{
-		query->newRootPageID = root->page_no;
-		query->rootPageIDUpdated = true;
+		*(query->newRootPageID) = root->page_no;
+		*(query->rootPageIDUpdated) = true;
 	}
-	return query;
 }
 
 
 template <class T>
-IndexQuery* btree<T>::bulk_delete(T n1,T n2,IndexQuery *query)
+void btree<T>::bulk_delete(T n1,T n2,IndexQuery *query)
 {
 	int res1,res;
 	int page_num;
@@ -3020,7 +3063,7 @@ IndexQuery* btree<T>::bulk_delete(T n1,T n2,IndexQuery *query)
 	l_temp->rid.resize(FANOUT+1);
 	*pos = 0;
 	*flag = 0;
-	l_temp = searching_key(i,flag,pos);
+	l_temp = searching_key(i,flag,pos,query);
 
 	if(*flag ==1)
 	{
@@ -3052,8 +3095,8 @@ IndexQuery* btree<T>::bulk_delete(T n1,T n2,IndexQuery *query)
 	while(i<=n2 && l_temp!=NULL)
 	{
 		//l_temp = searching_key(i,flag,pos);
-		l_temp = searching_neighbor(i,tr,flag,pos);
-		query = deleting(i,tr,query);
+		l_temp = searching_neighbor(i,tr,flag,pos,query);
+		deleting(i,tr,query);
 		
 		
 		if(*pos <= (l_temp->num_nodes-1))
@@ -3084,12 +3127,11 @@ IndexQuery* btree<T>::bulk_delete(T n1,T n2,IndexQuery *query)
 		
 		//count++;
 	}
-	return query;		
 }
 
 
 template <class T>
-IndexQuery* btree<T>::delete_dup(T num,IndexQuery *query,int *flag)
+void btree<T>::delete_dup(T num,IndexQuery *query,int *flag)
 {	
 	int res1;
 	int *pos = &res1;
@@ -3109,7 +3151,7 @@ IndexQuery* btree<T>::delete_dup(T num,IndexQuery *query,int *flag)
 	
 	l_temp->key.resize(FANOUT+1);	
 	l_temp->rid.resize(FANOUT+1);
-	l_temp = searching_key(num,flag,pos);
+	l_temp = searching_key(num,flag,pos,query);
 	
 	if(*flag==1)
 	{
@@ -3120,7 +3162,7 @@ IndexQuery* btree<T>::delete_dup(T num,IndexQuery *query,int *flag)
 		{
 			page_num_curr = l_temp->page_no;
 			page_num = l_temp->next;
-			query = deleting(num,tr,query);
+			deleting(num,tr,query);
 			if(page_num_curr!=-1)
 			l_temp = read_leaf_page(page_num_curr,val);
 			not_found = 1;
@@ -3153,11 +3195,10 @@ IndexQuery* btree<T>::delete_dup(T num,IndexQuery *query,int *flag)
 	{
 		*flag = 0;
 	}
-	return query;
 }
 
 template <class T>
-void btree<T>::split_internal(internal_node* child,internal_node* parent,IndexQuery *query)
+void btree<T>::split_internal(internal_node* child,internal_node* parent,IndexQuery *query,DB *curDB)
 {
 	
 	int new_num,old_num,i,j;
@@ -3175,7 +3216,7 @@ void btree<T>::split_internal(internal_node* child,internal_node* parent,IndexQu
 	} 
 	new_num = (FANOUT+1)/2;
 	child->num_nodes = old_num -1;
-	int_temp->page_no = getFreePage(query->curDB);
+	int_temp->page_no = (curDB)->getFreePage();
 	int_temp->level = child->level;
 	int_temp->num_nodes = new_num;	
 	int_temp->page_priority = 2;	
@@ -3244,13 +3285,13 @@ void btree<T>::split_internal(internal_node* child,internal_node* parent,IndexQu
 
 	write_internal_page(int_temp,val);
 	write_internal_page(child,val);
-	insert_internal(parent,child->key[old_num-1],child,int_temp,query);
+	insert_internal(parent,child->key[old_num-1],child,int_temp,query,curDB);
 }
 
 
 
 template <class T>
-void btree<T>::insert_internal(internal_node* node,T num,internal_node* child1,internal_node* child2,IndexQuery *query)
+void btree<T>::insert_internal(internal_node* node,T num,internal_node* child1,internal_node* child2,IndexQuery *query,DB *curDB)
 {
 	int i,page_priority,r = -1;
 	int *pos = &r;
@@ -3265,12 +3306,15 @@ void btree<T>::insert_internal(internal_node* node,T num,internal_node* child1,i
 		//node1->ptrs.resize(FANOUT+2);	
 		node->level=child1->level + 1;
 		node->num_nodes=1;
-		node->page_no = getFreePage(query->curDB);
+		node->page_no = curDB->getFreePage();
 		node->page_priority = 3;
 		(node->ptrs).push_back(child1->page_no);	
 		(node->ptrs).push_back(child2->page_no);
 		(node->key).push_back(num);
-		page_num = root->page_no;
+		if(*query->rootPageIDUpdated==false)
+		page_num = *query->rootPageID;
+		else
+		page_num = *query->newRootPageID;
 		root = read_internal_page(page_num,3,val);
 		root->page_priority  = 2; //updating root
 		write_internal_page(root,val); //writing the updated root
@@ -3278,9 +3322,9 @@ void btree<T>::insert_internal(internal_node* node,T num,internal_node* child1,i
 		node->parent_node = -1;
 		root->page_no = node->page_no;
 		root = node; //modify rootID
-		query->rootPageIDUpdated = true;
-		query->newRootPageID = root->page_no;
-		query->rootPageID = root->page_no;
+		*(query->rootPageIDUpdated) = true;
+		*(query->newRootPageID) = root->page_no;
+		//*(query->rootPageID) = root->page_no;
 		if(child1->level==0)
 		{
 			((leaf_node*)child1)->parent_node = root->page_no;
@@ -3354,7 +3398,7 @@ void btree<T>::insert_internal(internal_node* node,T num,internal_node* child1,i
 				else
 					parent = NULL;
 				
-				split_internal(node,parent,query);
+				split_internal(node,parent,query,curDB);
 				if(parent!=NULL)
 				write_internal_page(parent,val);
 				write_leaf_page((leaf_node*)node,val);
@@ -3377,7 +3421,7 @@ void btree<T>::insert_internal(internal_node* node,T num,internal_node* child1,i
 				write_internal_page(parent,val);
 				write_internal_page(node,val);
 
-				split_internal(node,parent,query);
+				split_internal(node,parent,query,curDB);
 
 			}
 		}
@@ -3385,7 +3429,7 @@ void btree<T>::insert_internal(internal_node* node,T num,internal_node* child1,i
 }
 
 template <class T>
-void btree<T>::split_leaf(leaf_node* child,internal_node* parent,RecordID rid,IndexQuery *query)
+void btree<T>::split_leaf(leaf_node* child,internal_node* parent,RecordID rid,IndexQuery *query,DB *curDB)
 {
 	int new_num,old_num,i,j;
 	T val;
@@ -3402,7 +3446,7 @@ void btree<T>::split_leaf(leaf_node* child,internal_node* parent,RecordID rid,In
 	new_num = (FANOUT+1)/2;
 	child->num_nodes = old_num;
 	l_temp->level = 0;
-	l_temp->page_no = getFreePage(query->curDB); //getFreePage
+	l_temp->page_no = curDB->getFreePage();//getFreePage
 	l_temp->page_priority = 1;
 	l_temp->num_nodes = new_num;
 	l_temp->next = child->next;
@@ -3431,12 +3475,12 @@ void btree<T>::split_leaf(leaf_node* child,internal_node* parent,RecordID rid,In
 	write_leaf_page(l_temp,val);
 	write_leaf_page(child,val);
 
-	insert_internal(parent,child->key[old_num-1],(internal_node*)child,(internal_node*)l_temp,query);
+	insert_internal(parent,child->key[old_num-1],(internal_node*)child,(internal_node*)l_temp,query,curDB);
 	
 }
 
 template <class T>
-void btree<T>::insert_leaf(leaf_node* l_temp,T num,internal_node* parent,RecordID rid,IndexQuery *query)
+void btree<T>::insert_leaf(leaf_node* l_temp,T num,internal_node* parent,RecordID rid,IndexQuery *query,DB *curDB)
 {
 	int i,r=-1;
 	int *pos = &r;
@@ -3503,12 +3547,12 @@ void btree<T>::insert_leaf(leaf_node* l_temp,T num,internal_node* parent,RecordI
 		}
 		write_leaf_page(l_temp,val);
 		
-		split_leaf(l_temp,parent,rid,query);
+		split_leaf(l_temp,parent,rid,query,curDB);
 	}
 }
 
 template <class T>
-IndexQuery* btree<T>::insert_key(T num,RecordID rid,IndexQuery *query)
+void btree<T>::insert_key(T num,RecordID rid,IndexQuery *query,DB *curDB)
 {
 	leaf_node *l_temp = NULL;
 	T val;
@@ -3516,11 +3560,10 @@ IndexQuery* btree<T>::insert_key(T num,RecordID rid,IndexQuery *query)
 	int flag,page_num;
 	if(root->num_nodes==0)
 	{
-		flag = searching_insert(num,rid);
+		flag = searching_insert(num,rid,query);
 		if(flag==1)
 		{
-			query->errorFlag = true;
-			return query;
+			*(query->errorFlag) = true;
 		}
 		
 		page_num = root->ptrs[0];
@@ -3528,7 +3571,7 @@ IndexQuery* btree<T>::insert_key(T num,RecordID rid,IndexQuery *query)
 		
 		if(l_temp!=NULL)
 		{
-			insert_leaf(l_temp,num,root,rid,query);
+			insert_leaf(l_temp,num,root,rid,query,curDB);
 			write_leaf_page(l_temp,val);
 			write_internal_page(root,val);
 		}
@@ -3536,15 +3579,18 @@ IndexQuery* btree<T>::insert_key(T num,RecordID rid,IndexQuery *query)
 	}
 	else
 	{			
-		flag = searching_insert(num,rid);
+		flag = searching_insert(num,rid,query);
 		if(flag==1)
 		{
-			query->errorFlag = true;
-			return query;
+			*(query->errorFlag) = true;
+			
 		}
 		else
 		{
-			page_num = root->page_no;
+			if(*query->rootPageIDUpdated==false)
+			page_num = *query->rootPageID;
+			else
+			page_num = *query->newRootPageID;
 			page_priority = root->page_priority;
 			root = read_internal_page(page_num,page_priority,val); //reading root
 			l_temp = insert_search_internal(root,num);
@@ -3564,67 +3610,64 @@ IndexQuery* btree<T>::insert_key(T num,RecordID rid,IndexQuery *query)
 			{
 				parent = NULL;
 			}
-			insert_leaf(l_temp,num,parent,rid,query);
+			insert_leaf(l_temp,num,parent,rid,query,curDB);
 			delete(l_temp);
 			delete(parent);
 				
 		}
 	}
-	return query;
 }
 
 
 template <class T>
-IndexQuery* btree<T>::bulk_insert(T n1,T n2,T step_size,IndexQuery* query)
+void btree<T>::bulk_insert(T n1,T n2,T step_size,IndexQuery* query,DB *curDB)
 {
 	T i = n1;
 	RecordID tr;
 	int count_bulk = 1;
 	while(i<=n2)
 	{
-		tr.dataPageID = getFreePage(query->curDB);
+		tr.dataPageID = (curDB)->getFreePage();
 		tr.slotID = count_bulk; 
-		query = insert_key(i,tr,query);
+		insert_key(i,tr,query,curDB);
 		i = i+step_size;
 		count_bulk++;
 	}
-	return query;
 }
 
-void indexInterface(IndexQuery *query)
+void indexInterface(IndexQuery *query, DB* curDB)
 {
 	string data;
-	IndexQuery *result;
 	data = (string)query->dataType;
 	if(data.compare("string")==0 || data.compare("std::string")==0 || data.compare("varchar")==0 || data.compare("char")==0)
 	{
-		btree<string> bt = btree<string>(query);
-		result = bt.start(query);		
+		btree<string> bt = btree<string>(query,curDB);
+		bt.start(query,curDB);		
 	}
 	else if(data.compare("int")==0 || data.compare("integer")==0)
 	{
-		btree<int> bt1 = btree<int>(query);
-		result = bt1.start(query);		
+		btree<int> bt1 = btree<int>(query,curDB);
+		bt1.start(query,curDB);		
 	}
 	else if(data.compare("float")==0)
 	{
-		btree<float> bt2 = btree<float>(query);
-		result = bt2.start(query);		
+		btree<float> bt2 = btree<float>(query,curDB);
+		bt2.start(query,curDB);		
 	}
 	else if(data.compare("double")==0)
 	{
-		btree<double> bt4 = btree<double>(query);
-		result = bt4.start(query);		
+		btree<double> bt4 = btree<double>(query,curDB);
+		bt4.start(query,curDB);		
 	}
 	else if(data.compare("long")==0)
 	{
-		btree<long> bt5 = btree<long>(query);
-		result = bt5.start(query);		
+		btree<long> bt5 = btree<long>(query,curDB);
+		bt5.start(query,curDB);		
 	}
 	else if(data.compare("short")==0)
 	{
-		btree<short> bt6 = btree<short>(query);
-		result = bt6.start(query);		
+		btree<short> bt6 = btree<short>(query,curDB);
+		bt6.start(query,curDB);		
 	}
 	//return result;
 	
@@ -3637,17 +3680,52 @@ int main()
 	cout<<"\n Size: "<<sizeof(IndexQuery);
 	IndexQuery *query = (IndexQuery*)malloc(sizeof(IndexQuery));	
 	cout<<"\n Instantiated";
-	query->queryType = 1;
+	//query->queryType = 1;
 	strcpy(query->dataType,"varchar");
 	query->charLength = 20;
-	query->rootPageID = -1;
-	query->errorFlag = false;
-	IndexQuery *result = NULL;  //(IndexQuery*)malloc(sizeof(IndexQuery));
-	result = indexInterface(query);
-	if(result!=NULL)
+	query->rootPageID = (int*)malloc(sizeof(int));
+	*query->rootPageID = -1;
+	query->errorFlag = new bool[1];
+	*query->errorFlag = false;
+	query->fanOut = (int*)malloc(sizeof(int));
+	query->fanOutChanged = new bool[1];
+	*query->fanOutChanged = false;
+	query->newFanOut = (int*)malloc(sizeof(int));
+	
+	string dbName;
+	int result,i;  //(IndexQuery*)malloc(sizeof(IndexQuery));
+	DB* curDB = new DB();
+	querystruct* q = (querystruct*) malloc(sizeof(querystruct));
+	cout<<"\n Enter the name of the database: ";
+	cin>>dbName;
+	for(i=0;i<dbName.length();i++)
+		q->dbname[i] = dbName[i];
+		q->dbname[i] = '\0';
+		result = curDB->createDB(q);
+	if(result > 0)
+				cout<<"Database "<<dbName<<" created."<<endl;
+			else
+				cout<<"CreateDB error: "<<result;
+
+	cout<<"\n Enter the name of the database: ";
+			cin>>dbName;
+			for(i=0;i<dbName.length();i++)
+				q->dbname[i] = dbName[i];
+			q->dbname[i] = '\0';
+			result = curDB->useDB(q);
+			if(result > 0)
+				cout<<"Database "<<dbName<<" loaded."<<endl;
+			else
+				cout<<"UseDB error: "<<result;
+	int ch;
+	cout<<endl<<"Enter the choice of query"<<endl;
+	cin>>ch;
+	query->queryType = ch;
+	indexInterface(query,curDB);
+	if(query!=NULL)
 	{
-		cout<<endl<<"Query->queryType:"<<result->queryType<<endl;
-		cout<<endl<<"Query->dataType:"<<result->dataType<<endl;
-		cout<<endl<<"Query->root:"<<result->rootPageID<<endl;
+		cout<<endl<<"Query->queryType:"<<query->queryType<<endl;
+		cout<<endl<<"Query->dataType:"<<query->dataType<<endl;
+		cout<<endl<<"Query->root:"<<*query->rootPageID<<endl;
 	}
 }
