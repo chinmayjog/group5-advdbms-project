@@ -119,3 +119,6 @@
 
 #define INDEXINSERTERROR -2040
 //-2040 = "Insert Entry: Index insert failed."
+
+#define FDIDERROR -2041
+//-2041 = "No database loaded"
