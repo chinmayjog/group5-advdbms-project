@@ -17,12 +17,15 @@ void executeQuery(DB *curDB, string s){
 		if(s!=""){
 			if(!strcmp(q->type, "CREATEDB")){
 				result = curDB->createDB(q);
+				cout<<endl<<"Result is: "<<result<<endl;
 			}
 			else if(!strcmp(q->type, "USEDB")){
 				result = curDB->useDB(q);
+				cout<<endl<<"Result is: "<<result<<endl;
 			}
 			else if(!strcmp(q->type,"DROPDB")){
 				result = curDB->dropDB(q);
+				cout<<endl<<"Result is: "<<result<<endl;
 			}
 			else if(!strcmp(q->type,"SHOWDB")){
 				result = curDB->showDB(q);
@@ -31,6 +34,7 @@ void executeQuery(DB *curDB, string s){
 						cout<<q->results[i]<<endl;
 					}
 				}
+				cout<<endl<<"Result is: "<<result<<endl;
 			}
 			else if(!strcmp(q->type,"SHOWTBL")){
 				result = curDB->showTables(q);
@@ -39,9 +43,11 @@ void executeQuery(DB *curDB, string s){
 						cout<<q->results[i]<<endl;
 					}
 				}
+				cout<<endl<<"Result is: "<<result<<endl;
 			}
 			else if(!strcmp(q->type,"CREATETBL")){
 				result = curDB->createTable(q);
+				cout<<endl<<"Result is: "<<result<<endl;
 			}
 			else if(!strcmp(q->type,"CREATEIND")){
 				//result = curDB->createIndex(q);
@@ -54,6 +60,7 @@ void executeQuery(DB *curDB, string s){
 			}
 			else if(!strcmp(q->type,"DELETE")){
 				result = curDB->deleteEntry(q);
+				cout<<endl<<"Result is: "<<result<<endl;
 			}
 			else if(!strcmp(q->type,"UPDATE")){
 				//result = curDB->updateEntry(q);
@@ -69,21 +76,12 @@ void executeQuery(DB *curDB, string s){
 						}
 					}
 				}
-				/*	
-						int cntpipes = 0;
-						for(int j=0;j<len;j++){
-							int cntcols = 0;
-							if(result[i][j]=='|'){
-								cntpipes ++;
-							}
-						}
-					}
-				}*/
+				cout<<endl<<"Result is: "<<result<<endl;
 			}
 			else if(!strncmp(q->type,"ALTER",5)){
 			//	result = curDB->selectEntry(q);
 			}	
-			cout<<endl<<"Result is: "<<result<<endl;
+			//cout<<endl<<"Result is: "<<result<<endl;
 		}
 	}
 	delete(q);
@@ -116,9 +114,13 @@ int main( int argc, char *argv[] ) {
 			} 
 			else {
 				char line[200];
+				long cnt = 0;
 				while(fgets(line, 199, fp)!= NULL){
 					s = string(line);
 					executeQuery(curDB, s);
+					cnt++;
+					if(cnt%1000 == 0)
+						cout<<endl<<"Number of records inserted: "<<cnt<<endl;
 				}
 			}
 		}
