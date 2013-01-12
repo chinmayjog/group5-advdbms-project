@@ -59,10 +59,17 @@ void executeQuery(DB *curDB, string s){
 				//result = curDB->updateEntry(q);
 			}
 			else if(!strcmp(q->type,"SELECT")){
-				/*result = curDB->selectEntry(q);
+				result = curDB->selectEntry(q);
 				if(result > 0){
-					for(int i=0; i<q->totalResultRows; i++){
-						int len = strlen(q->(result[i]));
+					for(int i=0; i<result; i++){
+						int len = strlen(q->results[i]);
+						cout<<endl<<"Length of result string:"<<len<<endl;
+						for(int j=0;j<len;j++){
+							cout<<(q->results[i])[j]<<endl;
+						}
+					}
+				}
+				/*	
 						int cntpipes = 0;
 						for(int j=0;j<len;j++){
 							int cntcols = 0;
