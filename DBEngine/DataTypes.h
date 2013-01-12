@@ -50,6 +50,7 @@ DATETIME+/-TZ         15
 #include<iostream>
 #include<limits>
 #include<cmath>
+#include<cstdlib>
 #include<cstring>
 
 using namespace std;
@@ -641,3 +642,4 @@ string charArrayConversion(char *charString,int length);
 string getDefaultValue(short dataTypeID,int charLength);
 void fillDefaultValue(char *defValue,int valueLength);
 int getDefaultValue(string defaultValue,char *defValue,int valueLength,short dataType);
+int dataCompare(char * data1,string data2,short dataType);

@@ -890,6 +890,267 @@ int dataCompare(char * data1,char * data2,short dataType)
 	}
 }
 
+int dataCompare(char * data1,string data2,short dataType)
+{
+	if(dataType == 1)
+	{
+		int d1,d2;
+		memcpy(&d1,data1,sizeof(int));
+		//memcpy(&d2,data2,sizeof(int));
+		d2 = atoi(data2.c_str());
+		if(d1 == d2)
+			return 0;
+		else if(d1 - d2 < 0)
+			return -1;
+		else
+			return 1;
+	}
+	else if(dataType == 2)
+	{
+		float d1,d2;
+		memcpy(&d1,data1,sizeof(float));
+		//memcpy(&d2,data2,sizeof(float));
+		d2 = atof(data2.c_str());
+		// This will change as we have to check how we can compare floats and doubles from Press or 
+		// other reliable Internet sources.....
+		/*if(d1 == d2)
+			return 0;
+		else if(d1 - d2 < 0)
+			return -1;
+		else
+			return 1;*/
+
+		// This is adapted from Knuth's book as per discussion in Stack Overflow - http://stackoverflow.com/questions/17333/most-effective-way-for-float-and-double-comparison
+		float epsilon = numeric_limits<float>::epsilon();
+		if((fabs(d1 - d2) <= ((fabs(d1) < fabs(d2) ? fabs(d2) : fabs(d1)) * epsilon)) == 1)
+			return 0;
+		else if((d1 - d2) > ((fabs(d1) < fabs(d2) ? fabs(d2) : fabs(d1)) * epsilon))
+			return 1;
+		else
+			return -1;
+	}
+	else if(dataType == 3)
+	{
+		int shortestLength;
+		short bigger;
+		string d1 = data1,d2 = data2;
+		if(d1.length()<d2.length())
+		{
+			shortestLength = d1.length();
+			bigger = 2;
+		}
+		else
+		{
+			shortestLength = d2.length();
+			bigger = 1;
+		}
+		for(int i = 0;i<shortestLength;i++)
+		{	
+			if(d1[i] == d2[i])
+			{
+				if(d1.length() == d2.length())
+					return 0;
+				continue;
+			}
+			if(d1[i] > d2[i])
+				return 1;
+			else
+				return -1;
+		}
+		//return strncmp(data1,data2,shortestLength);
+	}
+	else if(dataType == 4)
+	{
+		double d1,d2;
+		memcpy(&d1,data1,sizeof(double));
+		//memcpy(&d2,data2,sizeof(double));
+		d2 = atof(data2.c_str());
+		// This will change as we have to check how we can compare floats and doubles from Press or 
+		// other reliable Internet sources.....
+		/*if(d1 == d2)
+			return 0;
+		else if(d1 - d2 < 0)
+			return -1;
+		else
+			return 1;*/
+
+		// This is adapted from Knuth's book as per discussion in Stack Overflow - http://stackoverflow.com/questions/17333/most-effective-way-for-float-and-double-comparison
+		double epsilon = numeric_limits<double>::epsilon();
+		if((fabs(d1 - d2) <= ((fabs(d1) < fabs(d2) ? fabs(d2) : fabs(d1)) * epsilon)) == 1)
+			return 0;
+		else if((d1 - d2) > ((fabs(d1) < fabs(d2) ? fabs(d2) : fabs(d1)) * epsilon))
+			return 1;
+		else
+			return -1;
+	}
+	else if(dataType == 5)
+	{
+		//return strcmp(data1,data2);
+		int shortestLength;
+		short bigger;
+		string d1 = data1,d2 = data2;
+		if(d1.length()<d2.length())
+		{
+			shortestLength = d1.length();
+			bigger = 2;
+		}
+		else
+		{
+			shortestLength = d2.length();
+			bigger = 1;
+		}
+		for(int i = 0;i<shortestLength;i++)
+		{	
+			if(d1[i] == d2[i])
+			{
+				if(d1.length() == d2.length())
+					return 0;
+				continue;
+			}
+			if(d1[i] > d2[i])
+				return 1;
+			else
+				return -1;
+		}
+		//return strncmp(data1,data2,shortestLength);
+	}
+	else if(dataType == 6)
+	{
+		short d1,d2;
+		memcpy(&d1,data1,sizeof(short));
+		//memcpy(&d2,data2,sizeof(short));
+		d2 = atoi(data2.c_str());
+		if(d1 == d2)
+			return 0;
+		else if(d1 - d2 < 0)
+			return -1;
+		else
+			return 1;
+	}
+	else if(dataType == 7)
+	{
+		long d1,d2;
+		memcpy(&d1,data1,sizeof(long));
+		//memcpy(&d2,data2,sizeof(long));
+		d2 = atol(data2.c_str());
+		if(d1 == d2)
+			return 0;
+		else if(d1 - d2 < 0)
+			return -1;
+		else
+			return 1;
+	}
+	else if(dataType == 8)
+	{
+		unsigned int d1,d2;
+		memcpy(&d1,data1,sizeof(unsigned int));
+		//memcpy(&d2,data2,sizeof(unsigned int));
+		d2 = atoi(data2.c_str());
+		if(d1 == d2)
+			return 0;
+		else if(d1 - d2 < 0)
+			return -1;
+		else
+			return 1;
+	}
+	else if(dataType == 9)
+	{
+		unsigned short d1,d2;
+		memcpy(&d1,data1,sizeof(unsigned short));
+		//memcpy(&d2,data2,sizeof(unsigned short));
+		d2 = atoi(data2.c_str());
+		if(d1 == d2)
+			return 0;
+		else if(d1 - d2 < 0)
+			return -1;
+		else
+			return 1;
+	}
+	else if(dataType == 10)
+	{
+		unsigned long d1,d2;
+		memcpy(&d1,data1,sizeof(unsigned long));
+		//memcpy(&d2,data2,sizeof(unsigned long));
+		d2 = atol(data2.c_str());
+		if(d1 == d2)
+			return 0;
+		else if(d1 - d2 < 0)
+			return -1;
+		else
+			return 1;
+	}
+	else if(dataType == 11)
+	{
+		Date d1(data1);
+		char * dateString = new char [8];
+		d1.fillDate(dateString);
+		for(int i=0;i<8;i++)
+		{
+			if(dateString[i] == data2[i])
+			{
+				if(i == 7)
+					return 0;
+				continue;
+			}
+			if(dateString[i] < data2[i])
+				return -1;
+			else
+				return 1;
+		}
+		//return d1.compare(d2);
+	}
+	else if(dataType == 12)
+	{
+		Time d1(data1);
+		char * timeString = new char [6];
+		d1.fillTime(timeString);
+		for(int i=0;i<6;i++)
+		{
+			if(timeString[i] == data2[i])
+			{
+				if(i == 5)
+					return 0;
+				continue;
+			}
+			if(timeString[i] < data2[i])
+				return -1;
+			else
+				return 1;
+		}
+		//return d1.compare(d2);
+	}
+	else if(dataType == 13)
+	{
+		DateTime d1(data1);
+		char * dateTimeString = new char [14];
+		d1.fillDateTime(dateTimeString);
+		for(int i=0;i<14;i++)
+		{
+			if(dateTimeString[i] == data2[i])
+			{
+				if(i == 13)
+					return 0;
+				continue;
+			}
+			if(dateTimeString[i] < data2[i])
+				return -1;
+			else
+				return 1;
+		}
+		//return d1.compare(d2);
+	}
+	else if(dataType == 14)
+	{
+		// Not implemented yet.....
+		return -20;
+	}
+	else if(dataType == 15)
+	{
+		// Not implemented yet.....
+		return -20;
+	}
+}
+
 int dataCheck(char * data1,int length,short dataType)
 {
 	if(dataType == 1)
