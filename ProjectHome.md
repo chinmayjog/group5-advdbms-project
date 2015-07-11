@@ -1,0 +1,1 @@
+The project is to develop a RDBMS as part of Advanced DBMS course at IIIT, Bangalore.
